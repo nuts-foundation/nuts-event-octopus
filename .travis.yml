@@ -13,7 +13,7 @@ cache:
 
 before_install:
   - sudo apt-get install libzmq3-dev
-  - go get -t -v ./...
+  - go get -v ./...
 
 script:
   - go test ./... -coverprofile=coverage.txt -covermode=atomic
