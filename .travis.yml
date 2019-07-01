@@ -12,8 +12,8 @@ cache:
     - $HOME/gopath/pkg/mod
 
 before_install:
-  - go get -t -v ./...
   - sudo apt-get install libzmq3-dev
+  - go get -t -v ./...
 
 script:
   - go test ./... -race -coverprofile=coverage.txt -covermode=atomic
