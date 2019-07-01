@@ -14,8 +14,8 @@ Event service by the Nuts foundation for listening to events from different part
 .. image:: https://codecov.io/gh/nuts-foundation/nuts-event-octopus/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/nuts-foundation/nuts-event-octopus
 
-.. image:: https://api.codacy.com/project/badge/Grade/a
-    :target: https://www.codacy.com/app/woutslakhorst/nuts-event-octopus
+.. image:: https://api.codacy.com/project/badge/Grade/153b2e8e84ea4e52ac1303d2d9e7606a
+    :target: https://www.codacy.com/app/nuts-foundation/nuts-event-octopus
 
 .. include:: docs/pages/development/event-octopus.rst
     :start-after: .. marker-for-readme
