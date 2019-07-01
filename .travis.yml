@@ -12,7 +12,7 @@ cache:
     - $HOME/gopath/pkg/mod
 
 before_install:
-  - sudo apt-get install libzmq4-dev
+  - sudo apt-get install libzmq4
   - go get -t -v ./...
 
 script:
