@@ -43,9 +43,8 @@ func flagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("event octopus", pflag.ContinueOnError)
 
 	flags.Int(pkg.ConfigEpoch, pkg.ConfigEpochDefault, "Epoch at which the event stream from the consent bridge should start at")
-	flags.String(pkg.ConfigBridgeHost, pkg.ConfigBridgeHostDefault, "Host where nuts-consent-bridge is located")
-	flags.Int(pkg.ConfigQueuePort, pkg.ConfigQueuePortDefault, "Port for ZMQ tcp connection")
-	flags.Int(pkg.ConfigRestPort, pkg.ConfigRestPortDefault, "Port for REST service to start event stream")
+	flags.String(pkg.ConfigZmqAddress, pkg.ConfigZmqAddressDefault, "ZeroMQ address of the consent-bridge")
+	flags.String(pkg.ConfigRestAddress, pkg.ConfigRestAddressDefault, "REST address of consent-bridge")
 	flags.Int(pkg.ConfigRetryInterval, pkg.ConfigRetryIntervalDefault, "Retry delay in seconds for reconnecting")
 
 	return flags

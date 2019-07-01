@@ -30,23 +30,20 @@ import (
 )
 
 const ConfigEpoch = "eventStartEpoch"
-const ConfigBridgeHost = "bridgeHost"
-const ConfigQueuePort = "queuePort"
-const ConfigRestPort = "restPort"
+const ConfigZmqAddress = "ZmqAddress"
+const ConfigRestAddress = "RestAddress"
 const ConfigRetryInterval = "retryInterval"
 
 const ConfigEpochDefault = 0
-const ConfigBridgeHostDefault = "127.0.0.1"
-const ConfigQueuePortDefault = 5563
-const ConfigRestPortDefault = 8080
+const ConfigZmqAddressDefault = "tcp://127.0.0.1:5563"
+const ConfigRestAddressDefault = "http://localhost:8080"
 const ConfigRetryIntervalDefault = 60
 
 type EventOctopusConfig struct {
-	EventStartEpoch 		int
-	BridgeHost 	            string
-	QueuePort				int
-	RestPort				int
-	RetryInterval           int
+	EventStartEpoch int
+	ZmqAddress      string
+	RestAddress     string
+	RetryInterval   int
 }
 
 const (
@@ -120,14 +117,13 @@ func (octopus *EventOctopus) bridgeEventListener() {
 	defer s.Close()
 
 	rnd := "random"
-	address := fmt.Sprintf("tcp://%s:%d", octopus.Config.BridgeHost, octopus.Config.QueuePort)
-	err := s.Connect(address)
+	err := s.Connect(octopus.Config.ZmqAddress)
 	if err != nil {
 		octopus.feedbackChan <- fmt.Errorf("connecting to bridge: %v", err)
 		return
 	}
 
-	logrus.Infof("Connected stream to Nuts consent bridge @ %s", address)
+	logrus.Infof("Connected stream to Nuts consent bridge @ %s", octopus.Config.ZmqAddress)
 
 	err = s.SetSubscribe(rnd)
 	if err != nil {
@@ -162,8 +158,7 @@ func (octopus *EventOctopus) bridgeEventListener() {
 func (octopus *EventOctopus) initStreamWithRetry(rnd string) {
 	// todo http/https scheme config
 	// send start message
-	address := fmt.Sprintf("http://%s:%d", octopus.Config.BridgeHost, octopus.Config.RestPort)
-	client := api.Client{Server: address}
+	client := api.Client{Server: octopus.Config.RestAddress}
 	ctx, _ := context.WithTimeout(context.Background(), time.Second)
 	_, err := client.InitEventStream(ctx, api.EventStreamSetting{
 		Epoch: int64(octopus.Config.EventStartEpoch),

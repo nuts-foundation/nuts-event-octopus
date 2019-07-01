@@ -46,7 +46,7 @@ func TestEventOctopus_Configure(t *testing.T) {
 }
 
 func TestEventOctopus_Start(t *testing.T) {
-	eo := &EventOctopus{}
+	eo := testEventOctopus()
 	eo.Configure()
 	defer eo.Shutdown()
 
@@ -72,7 +72,7 @@ func TestEventOctopus_Shutdown(t *testing.T) {
 func TestEventOctopus_HappyFlow(t *testing.T) {
 	s, _ := zmq4.NewSocket(zmq4.PUB)
 	defer s.Close()
-	s.Bind("tcp://127.0.0.1:5563")
+	s.Bind("ipc://bridge.ipc")
 
 	eo := testEventOctopus()
 	eo.Configure()
@@ -99,9 +99,8 @@ func TestEventOctopus_HappyFlow(t *testing.T) {
 func testEventOctopus() *EventOctopus {
 	eo := EventOctopus{
 		Config:EventOctopusConfig{
-			BridgeHost: ConfigBridgeHostDefault,
-			QueuePort: ConfigQueuePortDefault,
-			RestPort: ConfigRestPortDefault,
+			ZmqAddress:    "ipc://bridge.ipc",
+			RestAddress:   ConfigRestAddressDefault,
 			RetryInterval: 1,
 		},
 		EventCallback: &testEventCallback{},
