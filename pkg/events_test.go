@@ -59,7 +59,7 @@ func TestEventOctopus_Start(t *testing.T) {
 
 func TestEventOctopus_Shutdown(t *testing.T) {
 	t.Run("Terminating zmqCtx does not give errors for default values", func(t *testing.T) {
-		eo := &EventOctopus{}
+		eo := testEventOctopus()
 		eo.Configure()
 		eo.Shutdown()
 
