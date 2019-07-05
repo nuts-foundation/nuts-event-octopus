@@ -7,14 +7,14 @@ Nuts event octopus configuration
 
 The following configuration parameters are available for the event service.
 
-===================================     ====================    ================================================================================
-Key                                     Default                 Description
-===================================     ====================    ================================================================================
-events.eventStartEpoch                  0                       Epoch at which the event stream from the consent bridge should start at
-events.zmqAddress                       tcp://127.0.0.1:5563    ZeroMQ address of the consent-bridge
-events.restAddress                      http://localhost:8080   REST address of consent-bridge
-events.retryInterval                    60                      Retry delay in seconds for reconnecting
-===================================     ====================    ================================================================================
+===================================     =====================    ================================================================================
+Key                                     Default                  Description
+===================================     =====================    ================================================================================
+events.eventStartEpoch                  0                        Epoch at which the event stream from the consent bridge should start at
+events.zmqAddress                       tcp://127.0.0.1:5563     ZeroMQ address of the consent-bridge
+events.restAddress                      http://localhost:8080    REST address of consent-bridge
+events.retryInterval                    60                       Retry delay in seconds for reconnecting
+===================================     =====================    ================================================================================
 
 As with all other properties for nuts-go, they can be set through yaml:
 

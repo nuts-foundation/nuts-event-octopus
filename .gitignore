@@ -16,3 +16,6 @@
 
 #sphinx
 _build
+
+#zmq
+*.ipc
