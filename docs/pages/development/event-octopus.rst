@@ -26,12 +26,6 @@ Building
 
 This project is part of https://github.com/nuts-foundation/nuts-go. If you do however would like a binary, just use ``go build``.
 
-The client API is generated from the nuts-consent-bridge open-api spec:
-
-.. code-block:: shell
-
-    oapi-codegen -generate client -package api ../nuts-api-spec/docs/_static/nuts-consent-bridge.yaml > api/generated.go
-
 README
 ******
 

@@ -21,7 +21,7 @@ package pkg
 import (
 	"context"
 	"fmt"
-	"github.com/nuts-foundation/nuts-event-octopus/api"
+	bridgeClient "github.com/nuts-foundation/consent-bridge-go-client/api"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/sirupsen/logrus"
 	"strings"
@@ -158,9 +158,9 @@ func (octopus *EventOctopus) bridgeEventListener() {
 func (octopus *EventOctopus) initStreamWithRetry(rnd string) {
 	// todo http/https scheme config
 	// send start message
-	client := api.Client{Server: octopus.Config.RestAddress}
+	client := bridgeClient.NewConsentBridgeClient()
 	ctx, _ := context.WithTimeout(context.Background(), time.Second)
-	_, err := client.InitEventStream(ctx, api.EventStreamSetting{
+	err := client.InitEventStream(ctx, bridgeClient.EventStreamSetting{
 		Epoch: int64(octopus.Config.EventStartEpoch),
 		Topic: rnd,
 	})
