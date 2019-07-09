@@ -89,7 +89,7 @@ func TestEventOctopus_HappyFlow(t *testing.T) {
 		// todo
 		time.Sleep(10 * time.Millisecond)
 
-		e := eo.EventCallback.(*testEventCallback).event
+		e := eo.eventCallback.(*testEventCallback).event
 		if e != event {
 			t.Errorf("Expected to receive %s, got %s", event, e)
 		}
@@ -103,7 +103,7 @@ func testEventOctopus() *EventOctopus {
 			RestAddress:   ConfigRestAddressDefault,
 			RetryInterval: 1,
 		},
-		EventCallback: &testEventCallback{},
+		eventCallback: &testEventCallback{},
 	}
 
 	return &eo

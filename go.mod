@@ -7,7 +7,8 @@ require (
 	github.com/deepmap/oapi-codegen v1.1.6
 	github.com/getkin/kin-openapi v0.2.0
 	github.com/nuts-foundation/consent-bridge-go-client v0.0.0-20190708190506-eeaa520036c0
-	github.com/nuts-foundation/nuts-go v0.0.0-20190705213330-6d6c5557de88
+	github.com/nuts-foundation/nuts-consent-logic v0.0.0-20190709073257-3be6fd75d08f // indirect
+	github.com/nuts-foundation/nuts-go v0.0.0-20190708115924-fe865d621733
 	github.com/pebbe/zmq4 v1.0.0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.5

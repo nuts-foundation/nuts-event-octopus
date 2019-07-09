@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	bridgeClient "github.com/nuts-foundation/consent-bridge-go-client/api"
+	"github.com/nuts-foundation/nuts-consent-logic/pkg"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/sirupsen/logrus"
 	"strings"
@@ -85,27 +86,38 @@ type EventOctopus struct {
 	Config        EventOctopusConfig
 	configOnce    sync.Once
 	configDone    bool
-	zmqCtx	      *zmq.Context
+	zmqCtx        *zmq.Context
 	feedbackChan  chan error
-	EventCallback EventCallback
+	eventCallback EventCallback
 	shutdown      bool
 }
 
 var instance *EventOctopus
 var oneInstance sync.Once
 
-type dummy struct{}
-func (*dummy) EventReceived(event *Event) {
-	logrus.Infof("receieved %v", event)
+type ConsentRequestCallback struct{
+	consentLogic  pkg.ConsentLogicClient
 }
 
+func (crc *ConsentRequestCallback) EventReceived(event *Event) {
+	logrus.Debugf("received %v", event)
+
+	if err := crc.consentLogic.HandleConsentRequest(event.Id); err != nil {
+		// todo serious error, missing events? => persist and retry!
+		logrus.Errorf("Error in sending event to eventLogic: %v", err)
+	}
+}
+
+// EventOctopusIntance returns the EventOctopus singleton
 func EventOctopusIntance() *EventOctopus {
 	oneInstance.Do(func() {
 		instance = &EventOctopus{
 			Config: EventOctopusConfig{
 				RetryInterval: 60,
 			},
-			EventCallback: &dummy{},
+			eventCallback: &ConsentRequestCallback{
+				consentLogic: pkg.NewConsentLogicClient(),
+			},
 		}
 	})
 	return instance
@@ -146,10 +158,10 @@ func (octopus *EventOctopus) bridgeEventListener() {
 		}
 
 		logrus.Debugf("Received %v", msg)
-		if octopus.EventCallback != nil {
+		if octopus.eventCallback != nil {
 			e := &Event{}
 			e.fromString(msg)
-			octopus.EventCallback.EventReceived(e)
+			octopus.eventCallback.EventReceived(e)
 		}
 		// call nuts-consent-logic
 	}
