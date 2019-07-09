@@ -44,7 +44,6 @@ func flagSet() *pflag.FlagSet {
 
 	flags.Int(pkg.ConfigEpoch, pkg.ConfigEpochDefault, "Epoch at which the event stream from the consent bridge should start at")
 	flags.String(pkg.ConfigZmqAddress, pkg.ConfigZmqAddressDefault, "ZeroMQ address of the consent-bridge")
-	flags.String(pkg.ConfigRestAddress, pkg.ConfigRestAddressDefault, "REST address of consent-bridge")
 	flags.Int(pkg.ConfigRetryInterval, pkg.ConfigRetryIntervalDefault, "Retry delay in seconds for reconnecting")
 
 	return flags
