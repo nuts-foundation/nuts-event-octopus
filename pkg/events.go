@@ -168,7 +168,7 @@ func (octopus *EventOctopus) initStreamWithRetry(rnd string) {
 	// todo http/https scheme config
 	// send start message
 	client := bridgeClient.NewConsentBridgeClient()
-	ctx, _ := context.WithTimeout(context.Background(), time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 10)
 	err := client.InitEventStream(ctx, bridgeClient.EventStreamSetting{
 		Epoch: int64(octopus.Config.EventStartEpoch),
 		Topic: rnd,
