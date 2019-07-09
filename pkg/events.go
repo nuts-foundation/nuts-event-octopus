@@ -32,18 +32,15 @@ import (
 
 const ConfigEpoch = "eventStartEpoch"
 const ConfigZmqAddress = "ZmqAddress"
-const ConfigRestAddress = "RestAddress"
 const ConfigRetryInterval = "retryInterval"
 
 const ConfigEpochDefault = 0
 const ConfigZmqAddressDefault = "tcp://127.0.0.1:5563"
-const ConfigRestAddressDefault = "http://localhost:8080"
 const ConfigRetryIntervalDefault = 60
 
 type EventOctopusConfig struct {
 	EventStartEpoch int
 	ZmqAddress      string
-	RestAddress     string
 	RetryInterval   int
 }
 
