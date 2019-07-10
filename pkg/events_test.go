@@ -100,7 +100,6 @@ func testEventOctopus() *EventOctopus {
 	eo := EventOctopus{
 		Config:EventOctopusConfig{
 			ZmqAddress:    "ipc://bridge.ipc",
-			RestAddress:   ConfigRestAddressDefault,
 			RetryInterval: 1,
 		},
 		eventCallback: &testEventCallback{},

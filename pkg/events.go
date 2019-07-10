@@ -57,21 +57,49 @@ type Event struct {
 	State  string
 
 	// Id represents the externalId of that changed state
-	Id     string
+	Id     LinearId
 	// Action: consumed or produced
 	Action string
+}
+
+// LinearId represents the combined id of externalId and UUID
+type LinearId struct {
+	ExternalId 	*string
+	UUID 		string
+}
+
+func LinearIdFromString(s string) LinearId {
+	if strings.Contains(s, "_") {
+		splitted := strings.Split(s, "_")
+		return LinearId{
+			ExternalId: &splitted[0],
+			UUID:       splitted[1],
+		}
+	} else {
+		return LinearId{
+			UUID:       s,
+		}
+	}
 }
 
 func (e *Event) fromString(s string) {
 	splitted := strings.Split(s, ":")
 	e.Topic = splitted[0]
 	e.State = splitted[1]
-	e.Id = splitted[2]
+	e.Id = LinearIdFromString(splitted[2])
 	e.Action = splitted[3]
 }
 
 func (e *Event) String() string {
-	return fmt.Sprintf("%s:%s:%s:%s", e.Topic, e.State, e.Id, e.Action)
+	return fmt.Sprintf("%s:%s:%v:%s", e.Topic, e.State, e.Id, e.Action)
+}
+
+func (l LinearId) String() string {
+	if l.ExternalId != nil {
+		return fmt.Sprintf("%s_%s", *l.ExternalId, l.UUID)
+	} else {
+		return fmt.Sprintf("%s", l.UUID)
+	}
 }
 
 type EventCallback interface {
@@ -99,7 +127,7 @@ type ConsentRequestCallback struct{
 func (crc *ConsentRequestCallback) EventReceived(event *Event) {
 	logrus.Debugf("received %v", event)
 
-	if err := crc.consentLogic.HandleConsentRequest(event.Id); err != nil {
+	if err := crc.consentLogic.HandleConsentRequest(event.Id.UUID); err != nil {
 		// todo serious error, missing events? => persist and retry!
 		logrus.Errorf("Error in sending event to eventLogic: %v", err)
 	}
