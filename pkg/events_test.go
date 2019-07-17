@@ -19,30 +19,15 @@
 package pkg
 
 import (
-	"fmt"
-	"github.com/pebbe/zmq4"
+	"encoding/json"
+	natsClient "github.com/nats-io/stan.go"
+	uuid "github.com/satori/go.uuid"
 	"testing"
 	"time"
 )
 
 func TestEventOctopus_Configure(t *testing.T) {
-	t.Run("creates ZMQ context", func(t *testing.T) {
-		eo := &EventOctopus{}
-		eo.Configure()
 
-		if eo.zmqCtx == nil {
-			t.Log("Expected zmqCtx to have been made")
-		}
-	})
-
-	t.Run("creates ZMQ context", func(t *testing.T) {
-		eo := &EventOctopus{}
-		eo.Configure()
-
-		if eo.feedbackChan == nil {
-			t.Log("Expected feedback channel to have been made")
-		}
-	})
 }
 
 func TestEventOctopus_Start(t *testing.T) {
@@ -69,49 +54,60 @@ func TestEventOctopus_Shutdown(t *testing.T) {
 	})
 }
 
-func TestEventOctopus_HappyFlow(t *testing.T) {
-	s, _ := zmq4.NewSocket(zmq4.PUB)
-	defer s.Close()
-	s.Bind("ipc://bridge.ipc")
+func TestEventOctopus_EventPersisted(t *testing.T) {
+	i := EventOctopusIntance()
+	//i.Config.Connectionstring = "test.db"
+	i.Start()
+	i.RunMigrations(i.Db.DB())
 
-	eo := testEventOctopus()
-	eo.Configure()
-	eo.Start()
-	defer eo.Shutdown()
+	t.Run("a published event is persisted in db", func(t *testing.T) {
+		sc := stanConnection()
 
-	// todo
-	time.Sleep(10 * time.Millisecond)
+		u := uuid.NewV4().String()
 
-	t.Run("Event is received", func(t *testing.T) {
-		event := fmt.Sprintf("random:state:id:produced")
-		s.Send(event, 0)
+		event := Event{
+			Uuid: u,
+			RetryCount: 0,
+			Payload: "test",
+			State: "offered",
+			ExternalId: "e_id",
+			ConsentId: uuid.NewV4().String(),
+			Custodian: "urn:nuts:custodian:test",
+		}
 
-		// todo
-		time.Sleep(10 * time.Millisecond)
+		je, _ := json.Marshal(event)
 
-		e := eo.eventCallback.(*testEventCallback).event
-		if e != event {
-			t.Errorf("Expected to receive %s, got %s", event, e)
+		sc.Publish("consent-request", je)
+
+		time.Sleep(time.Second)
+
+		evts, _ := i.List()
+		if len(*evts) != 1 {
+			t.Errorf("Expected 1 event in DB, found %d", len(*evts))
 		}
 	})
 }
 
+func stanConnection() natsClient.Conn {
+	sc, err := natsClient.Connect(
+		"nuts",
+		"event-octopus-test",
+		natsClient.NatsURL("nats://localhost:4222"),
+	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return sc
+}
+
 func testEventOctopus() *EventOctopus {
 	eo := EventOctopus{
-		Config:EventOctopusConfig{
-			ZmqAddress:    "ipc://bridge.ipc",
+		Config: EventOctopusConfig{
 			RetryInterval: 1,
 		},
-		eventCallback: &testEventCallback{},
 	}
 
 	return &eo
-}
-
-type testEventCallback struct {
-	event string
-}
-
-func (t *testEventCallback) EventReceived(event *Event) {
-	t.event = event.String()
 }

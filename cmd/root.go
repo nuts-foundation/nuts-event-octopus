@@ -27,6 +27,7 @@ import (
 	"os/signal"
 	"sync"
 )
+
 var e = engine.NewEventOctopusEngine()
 var rootCmd = &cobra.Command{
 	Short: "test command",

@@ -19,6 +19,8 @@
 package engine
 
 import (
+	"github.com/deepmap/oapi-codegen/pkg/runtime"
+	"github.com/nuts-foundation/nuts-event-octopus/api"
 	"github.com/nuts-foundation/nuts-event-octopus/pkg"
 	engine "github.com/nuts-foundation/nuts-go/pkg"
 	"github.com/spf13/pflag"
@@ -29,22 +31,25 @@ func NewEventOctopusEngine() *engine.Engine {
 	i := pkg.EventOctopusIntance()
 
 	return &engine.Engine{
+		Name:      "Events octopus",
 		Config:    &i.Config,
 		ConfigKey: "events",
 		Configure: i.Configure,
 		FlagSet:   flagSet(),
-		Name:      "Events octopus",
-		Start:	   i.Start,
-		Shutdown:  i.Shutdown,
+		Routes: func(router runtime.EchoRouter) {
+			api.RegisterHandlers(router, &api.ApiWrapper{Eo: i})
+		},
+		Start:    i.Start,
+		Shutdown: i.Shutdown,
 	}
 }
 
 func flagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("event octopus", pflag.ContinueOnError)
 
-	flags.Int(pkg.ConfigEpoch, pkg.ConfigEpochDefault, "Epoch at which the event stream from the consent bridge should start at")
-	flags.String(pkg.ConfigZmqAddress, pkg.ConfigZmqAddressDefault, "ZeroMQ address of the consent-bridge")
 	flags.Int(pkg.ConfigRetryInterval, pkg.ConfigRetryIntervalDefault, "Retry delay in seconds for reconnecting")
+	flags.Int(pkg.ConfigNatsPort, pkg.ConfigNatsPortDefault, "Port for Nats to bind on")
+	flags.String(pkg.ConfigConnectionstring, pkg.ConfigConnectionStringDefault, "db connection string for event store")
 
 	return flags
 }
