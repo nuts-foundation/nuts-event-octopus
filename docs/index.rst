@@ -4,9 +4,9 @@ Welcome to Nuts event octopus's documentation!
 ==============================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-   :glob:
+    :maxdepth: 2
+    :caption: Contents:
+    :glob:
 
-   pages/*
+    pages/**/*
 
