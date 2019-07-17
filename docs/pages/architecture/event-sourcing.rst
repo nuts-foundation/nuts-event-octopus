@@ -9,7 +9,7 @@ From a technical point of view, there's also the complexity of retrying failed s
 Enter `event-sourcing <https://martinfowler.com/eaaDev/EventSourcing.html>`_, a technique that stores events in a log, ready to be re-run at a later stage.
 The example most commonly used is that of a purchase or order, where the order goes through different states before being completed.
 Consent rules can be seen as *orders*. Together with event-sourcing, `CQRS <https://martinfowler.com/bliki/CQRS.html>`_ is commonly used in these types of systems.
-The main idea is to make the entire system event-based, where different services react on different events. Events are handles by multiple services.
+The main idea is to make the entire system event-based, where different services react on different events. Events are handled by multiple services.
 One of these services is responsible for creating the current state. This state can then be queried by vendor-space for the current state of a consent request.
 Other services act on the events to help transition the state. In the case of :ref:`disaster-recovery` the entire event log can be replayed.
 
