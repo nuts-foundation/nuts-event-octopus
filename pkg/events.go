@@ -197,7 +197,7 @@ func (octopus *EventOctopus) eventStoreClient() error {
 
 	sc, err := natsClient.Connect(
 		"nuts",
-		"event-octopus",
+		"event-store",
 		natsClient.NatsURL(fmt.Sprintf("nats://localhost:%d", octopus.Config.NatsPort)),
 	)
 
@@ -206,7 +206,7 @@ func (octopus *EventOctopus) eventStoreClient() error {
 	}
 	// Subscribe with manual ack mode
 	// todo store Subscription?
-	_, err = sc.Subscribe("consent-request", func(msg *natsClient.Msg) {
+	_, err = sc.Subscribe(ChannelConsentRequest, func(msg *natsClient.Msg) {
 		msg.Ack() // Manual ACK
 		event := Event{}
 		// Unmarshal JSON that represents the Order data

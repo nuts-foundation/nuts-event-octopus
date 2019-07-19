@@ -85,7 +85,7 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 
 		je, _ := json.Marshal(event)
 
-		sc.Publish("consent-request", je)
+		sc.Publish(ChannelConsentRequest, je)
 
 		time.Sleep(10 * time.Millisecond)
 
@@ -104,12 +104,12 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 		e.Uuid = u
 
 		je, _ := json.Marshal(e)
-		sc.Publish("consent-request", je)
+		sc.Publish(ChannelConsentRequest, je)
 
 		e.State = EventStateCompleted
 
 		je, _ = json.Marshal(e)
-		sc.Publish("consent-request", je)
+		sc.Publish(ChannelConsentRequest, je)
 
 		time.Sleep(10 * time.Millisecond)
 

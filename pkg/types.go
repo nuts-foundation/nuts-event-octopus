@@ -38,3 +38,5 @@ const EventStateFinalized = "finalized"
 const EventStateToBePersisted = "to be persisted"
 const EventStateCompleted = "completed"
 const EventStateToBeError = "error"
+
+const ChannelConsentRequest = "consentRequest"
