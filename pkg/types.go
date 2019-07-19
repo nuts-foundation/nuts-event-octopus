@@ -29,3 +29,12 @@ type Event struct {
 	State      string `gorm:"not null"`
 	Uuid       string `gorm:"PRIMARY_KEY"`
 }
+
+const EventStateRequested = "requested"
+const EventStateOffered = "offered"
+const EventStateToBeAccepted = "to be accepted"
+const EventStateAccepted = "accepted"
+const EventStateFinalized = "finalized"
+const EventStateToBePersisted = "to be persisted"
+const EventStateCompleted = "completed"
+const EventStateToBeError = "error"

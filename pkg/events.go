@@ -40,7 +40,7 @@ const ConfigConnectionstring = "connectionstring"
 
 const ConfigRetryIntervalDefault = 60
 const ConfigNatsPortDefault = 4222
-const ConfigConnectionStringDefault = ":memory:"
+const ConfigConnectionStringDefault = "file:not_used?mode=memory&cache=shared"
 
 type EventOctopusConfig struct {
 	RetryInterval    int
@@ -88,7 +88,6 @@ func (octopus *EventOctopus) Configure() error {
 		if err != nil {
 			return
 		}
-		defer db.Close()
 
 		// 1 ping
 		err = db.Ping()
@@ -255,7 +254,7 @@ func (eo *EventOctopus) List() (*[]Event, error) {
 func (eo *EventOctopus) GetEvent(uuid string) (*Event, error) {
 	event := &Event{}
 
-	err := eo.Db.Where("uuid = ?", uuid).First(&event).Error
+	err := eo.Db.Debug().Where("uuid = ?", uuid).First(&event).Error
 
 	return event, err
 }

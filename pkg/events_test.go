@@ -20,6 +20,7 @@ package pkg
 
 import (
 	"encoding/json"
+	"fmt"
 	natsClient "github.com/nats-io/stan.go"
 	uuid "github.com/satori/go.uuid"
 	"testing"
@@ -56,34 +57,65 @@ func TestEventOctopus_Shutdown(t *testing.T) {
 
 func TestEventOctopus_EventPersisted(t *testing.T) {
 	i := EventOctopusIntance()
-	//i.Config.Connectionstring = "test.db"
-	i.Start()
-	i.RunMigrations(i.Db.DB())
+	i.Config.Connectionstring = "file:not_used?mode=memory&cache=shared"
+	if err := i.Start(); err != nil {
+		fmt.Printf("%v\n", err)
+	}
+
+	if err := i.RunMigrations(i.Db.DB()); err != nil {
+		fmt.Printf("%v\n", err)
+	}
+
+	event := Event{
+		RetryCount: 0,
+		Payload: "test",
+		State: EventStateOffered,
+		ExternalId: "e_id",
+		ConsentId: uuid.NewV4().String(),
+		Custodian: "urn:nuts:custodian:test",
+	}
 
 	t.Run("a published event is persisted in db", func(t *testing.T) {
 		sc := stanConnection()
 
 		u := uuid.NewV4().String()
 
-		event := Event{
-			Uuid: u,
-			RetryCount: 0,
-			Payload: "test",
-			State: "offered",
-			ExternalId: "e_id",
-			ConsentId: uuid.NewV4().String(),
-			Custodian: "urn:nuts:custodian:test",
-		}
+		e := event
+		e.Uuid = u
 
 		je, _ := json.Marshal(event)
 
 		sc.Publish("consent-request", je)
 
-		time.Sleep(time.Second)
+		time.Sleep(10 * time.Millisecond)
 
 		evts, _ := i.List()
 		if len(*evts) != 1 {
 			t.Errorf("Expected 1 event in DB, found %d", len(*evts))
+		}
+	})
+
+	t.Run("a published event is updated in db", func(t *testing.T) {
+		sc := stanConnection()
+
+		u := uuid.NewV4().String()
+
+		e := event
+		e.Uuid = u
+
+		je, _ := json.Marshal(e)
+		sc.Publish("consent-request", je)
+
+		e.State = EventStateCompleted
+
+		je, _ = json.Marshal(e)
+		sc.Publish("consent-request", je)
+
+		time.Sleep(10 * time.Millisecond)
+
+		evts, _ := i.List()
+		if (*evts)[0].State != EventStateCompleted {
+			t.Errorf("Expected event to have state %s, found %s", EventStateCompleted, (*evts)[0].State)
 		}
 	})
 }
