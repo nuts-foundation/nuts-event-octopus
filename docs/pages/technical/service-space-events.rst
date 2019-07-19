@@ -15,7 +15,7 @@ Event model
         externalId: string  # ID calculated by crypto using BSN and private key of custodian
         consentId: string   # V4 UUID assigned by Corda to a record
         custodian: string   # urn style identifier of the custodian, used to select correct key for decryption
-        payload: string     # NewConsentRequestState JSON as accepted by consent-bridge (:ref:`nuts-consent-bridge-api`)
+        payload: string     # Base64 encoded NewConsentRequestState JSON as accepted by consent-bridge (:ref:`nuts-consent-bridge-api`)
         error: string       # error reason in case of a functional error
 
 
