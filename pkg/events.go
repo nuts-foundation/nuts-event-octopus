@@ -42,13 +42,19 @@ const ConfigRetryIntervalDefault = 60
 const ConfigNatsPortDefault = 4222
 const ConfigConnectionStringDefault = "file:not_used?mode=memory&cache=shared"
 
+// EventOctopusConfig holds the config for the EventOctopusInstance
 type EventOctopusConfig struct {
 	RetryInterval    int
 	NatsPort         int
 	Connectionstring string
 }
 
-// default implementation for EventOctopusInstance
+// EventOctopusClient is the client interface for publishing events
+type EventOctopusClient interface {
+	EventPublisher(clientId string) (natsClient.Conn, error)
+}
+
+// EventOctopus is the default implementation for EventOctopusInstance
 type EventOctopus struct {
 	Config     EventOctopusConfig
 	configOnce sync.Once
@@ -224,6 +230,14 @@ func (octopus *EventOctopus) eventStoreClient() error {
 	logrus.Infof("Connected to Stan-Streaming server @ nats://localhost:%d", octopus.Config.NatsPort)
 
 	return err
+}
+
+func (octopus *EventOctopus) EventPublisher(clientId string) (natsClient.Conn, error) {
+	return natsClient.Connect(
+		"nuts",
+		clientId,
+		natsClient.NatsURL(fmt.Sprintf("nats://localhost:%d", octopus.Config.NatsPort)),
+	)
 }
 
 // Shutdown closes the connection to the DB and the natsServer server
