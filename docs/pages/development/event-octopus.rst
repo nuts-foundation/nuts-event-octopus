@@ -28,6 +28,15 @@ Generating code
 
     oapi-codegen -generate server -package api docs/_static/nuts-event-store.yaml > api/generated.go
 
+Generating Mock
+***************
+
+When making changes to the client interface run the following command to regenerate the mock:
+
+.. code-block:: shell
+
+    mockgen -destination=mock/mock_client.go -package=mock -source=pkg/events.go
+
 
 Building
 ********

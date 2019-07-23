@@ -40,6 +40,15 @@ Generating code
 
     oapi-codegen -generate server -package api docs/_static/nuts-event-store.yaml > api/generated.go
 
+Generating Mock
+***************
+
+When making changes to the client interface run the following command to regenerate the mock:
+
+.. code-block:: shell
+
+    mockgen -destination=mock/mock_client.go -package=mock -source=pkg/events.go
+
 
 Building
 ********
@@ -90,13 +99,13 @@ Configuration
 
 The following configuration parameters are available for the event service.
 
-===================================     =====================    ================================================================================
-Key                                     Default                  Description
-===================================     =====================    ================================================================================
-events.eventStartEpoch                  0                        Epoch at which the event stream from the consent bridge should start at
-events.zmqAddress                       tcp://127.0.0.1:5563     ZeroMQ address of the consent-bridge
-events.retryInterval                    60                       Retry delay in seconds for reconnecting
-===================================     =====================    ================================================================================
+===================================     ======================================  ========================================
+Key                                     Default                                 Description
+===================================     ======================================  ========================================
+events.ConfigConnectionstring           file:not_used?mode=memory&cache=shared  db connection string for event store
+events.natsPort                         4222                                    Port for Nats to bind on
+events.retryInterval                    60                                      Retry delay in seconds for reconnecting
+===================================     ======================================  ========================================
 
 As with all other properties for nuts-go, they can be set through yaml:
 
