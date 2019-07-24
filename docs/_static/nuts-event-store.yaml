@@ -48,6 +48,33 @@ paths:
               example: "event not found"
               schema:
                 type: string
+  /events/by_external_id/{external_id}:
+    post:
+      summary: "Find a specific event by its externalId"
+      operationId: getEventByExternalId
+      tags:
+        - event
+      parameters:
+        - name: external_id
+          in: path
+          description: "external_id of consent request action"
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "OK response, body holds outcome of request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        '404':
+          description: "Not found, probably due to restart and thus no longer recorded, from which can be assumed that it has been completed."
+          content:
+            text/plain:
+              example: "event not found"
+              schema:
+                type: string
 components:
   schemas:
     EventListResponse:
