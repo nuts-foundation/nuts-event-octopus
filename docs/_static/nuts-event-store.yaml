@@ -2,7 +2,7 @@ openapi: "3.0.0"
 info:
   title: Nuts event store spec
   description: >
-    API specification for event store. The event store records the state of the in-flight events.
+    API specification for event store. The event store records the events of the in-flight transactions.
   version: 0.1.0
   license:
     name: GPLv3
@@ -86,7 +86,7 @@ components:
     Event:
       required:
         - uuid
-        - state
+        - name
         - retryCount
         - externalId
         - consentId
@@ -97,7 +97,7 @@ components:
           type: string
           description: "V4 UUID"
           format: uuid
-        state:
+        name:
           type: string
           enum: ['requested', 'offered', 'to be accepted', 'accepted', 'finalized', 'to be persisted', 'completed', 'error']
         retryCount:

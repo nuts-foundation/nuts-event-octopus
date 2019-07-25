@@ -57,7 +57,7 @@ func TestEventOctopus_Shutdown(t *testing.T) {
 
 func TestEventOctopus_EventPersisted(t *testing.T) {
 	i := EventOctopusIntance()
-	i.Config.Connectionstring = "file:not_used?mode=memory&cache=shared"
+	i.Config.Connectionstring = "file::memory:?cache=shared"
 	if err := i.Start(); err != nil {
 		fmt.Printf("%v\n", err)
 	}
@@ -68,15 +68,17 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 
 	event := Event{
 		RetryCount: 0,
-		Payload: "test",
-		State: EventStateOffered,
+		Payload:    "test",
+		Name:       EventStateOffered,
 		ExternalId: "e_id",
-		ConsentId: uuid.NewV4().String(),
-		Custodian: "urn:nuts:custodian:test",
+		ConsentId:  uuid.NewV4().String(),
+		Custodian:  "urn:nuts:custodian:test",
 	}
 
 	t.Run("a published event is persisted in db", func(t *testing.T) {
 		sc := stanConnection()
+		defer sc.Close()
+		defer emptyTable()
 
 		u := uuid.NewV4().String()
 
@@ -97,6 +99,8 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 
 	t.Run("a published event is updated in db", func(t *testing.T) {
 		sc := stanConnection()
+		defer sc.Close()
+		defer emptyTable()
 
 		u := uuid.NewV4().String()
 
@@ -106,18 +110,27 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 		je, _ := json.Marshal(e)
 		sc.Publish(ChannelConsentRequest, je)
 
-		e.State = EventStateCompleted
+		e.Name = EventStateCompleted
 
 		je, _ = json.Marshal(e)
 		sc.Publish(ChannelConsentRequest, je)
 
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 
 		evts, _ := i.List()
-		if (*evts)[0].State != EventStateCompleted {
-			t.Errorf("Expected event to have state %s, found %s", EventStateCompleted, (*evts)[0].State)
+		if len(*evts) != 1 {
+			t.Fatalf("Expected to have received exactly 1 event, got %v", len(*evts))
+		}
+		if (*evts)[0].Name != EventStateCompleted {
+			t.Errorf("Expected event to have name %s, found %s", EventStateCompleted, (*evts)[0].Name)
 		}
 	})
+}
+
+func emptyTable() {
+	event := &Event{}
+	i := EventOctopusIntance()
+	defer i.Db.Delete(&event)
 }
 
 func stanConnection() natsClient.Conn {
@@ -138,6 +151,7 @@ func testEventOctopus() *EventOctopus {
 	eo := EventOctopus{
 		Config: EventOctopusConfig{
 			RetryInterval: 1,
+			NatsPort:      4222,
 		},
 	}
 

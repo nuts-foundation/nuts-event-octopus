@@ -26,9 +26,11 @@ type Event struct {
 	ExternalId string `gorm:"not null"`
 	Payload    string `gorm:"not null"`
 	RetryCount int32
-	State      string `gorm:"not null"`
+	Name       string `gorm:"not null"`
 	Uuid       string `gorm:"PRIMARY_KEY"`
 }
+
+type EventHandlerCallback func(event *Event)
 
 const EventStateRequested = "requested"
 const EventStateOffered = "offered"

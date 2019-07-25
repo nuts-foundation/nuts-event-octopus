@@ -20,7 +20,7 @@ import (
 func bindataRead(data []byte, name string) ([]byte, error) {
 	gz, err := gzip.NewReader(bytes.NewBuffer(data))
 	if err != nil {
-		return nil, fmt.Errorf("Read %q: %v", name, err)
+		return nil, fmt.Errorf("read %q: %v", name, err)
 	}
 
 	var buf bytes.Buffer
@@ -28,7 +28,7 @@ func bindataRead(data []byte, name string) ([]byte, error) {
 	clErr := gz.Close()
 
 	if err != nil {
-		return nil, fmt.Errorf("Read %q: %v", name, err)
+		return nil, fmt.Errorf("read %q: %v", name, err)
 	}
 	if clErr != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func (fi bindataFileInfo) Mode() os.FileMode {
 	return fi.mode
 }
 
-// Mode return file modify time
+// ModTime return file modify time
 func (fi bindataFileInfo) ModTime() time.Time {
 	return fi.modTime
 }
@@ -94,12 +94,12 @@ func _1_create_table_eventDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "1_create_table_event.down.sql", size: 18, mode: os.FileMode(420), modTime: time.Unix(1563365464, 0)}
+	info := bindataFileInfo{name: "1_create_table_event.down.sql", size: 18, mode: os.FileMode(420), modTime: time.Unix(1563875080, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
-var __1_create_table_eventUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x7c\xce\xc1\x8a\xc2\x30\x10\xc6\xf1\x7b\x9f\xe2\x3b\xb6\xb0\xa7\x2e\xdd\xcb\x9e\x62\x09\x58\xac\x55\x42\x14\x7b\x2a\xa1\xc9\xa1\x50\x12\x49\x26\x62\xdf\x5e\x68\x45\xa4\x82\xe7\xdf\xcc\x7f\xa6\x14\x9c\x49\x0e\xc9\x36\x35\x87\xb9\x19\x4b\x01\x69\x02\x00\x31\x0e\x1a\xe5\x96\x89\xf4\xf7\x2f\xc3\x51\x54\x7b\x26\x5a\xec\x78\xfb\x33\x73\x20\x45\x06\x67\x26\x96\x91\x3c\x43\x73\x90\x68\x4e\x75\xbd\xb8\x37\xe4\xa7\xae\x77\xd1\x12\xaa\x46\xae\xd4\xdc\xc9\x78\xab\xc6\x6e\xd0\xaf\x46\x5e\x14\xeb\x48\xef\x6c\x30\x96\xba\xb7\x4f\x9e\x10\x03\x39\x3d\x28\xfb\x6d\xfb\xaa\xa6\xd1\x29\x0d\xc9\x2f\x1f\xf7\xbd\x77\x7e\x86\x24\xfb\x4f\x1e\x01\x00\x00\xff\xff\xec\x7f\xd9\x00\x05\x01\x00\x00")
+var __1_create_table_eventUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x7c\xce\x41\xcb\x82\x40\x10\xc6\xf1\xbb\x9f\xe2\x39\x2a\xbc\x27\x5f\xec\xd2\x69\x93\x85\x24\xb3\x58\xb6\xc8\x93\x2c\xee\x1e\x04\x9b\x8d\x75\x37\xf2\xdb\x07\x1a\x11\x06\x9d\x7f\x33\xff\x99\x5c\x70\x26\x39\x24\xdb\x94\x1c\xe6\x6e\xc8\x0f\x88\x23\x00\x08\xa1\xd3\xc8\xb7\x4c\xc4\xff\xab\x04\x47\x51\xec\x99\xa8\xb1\xe3\xf5\xdf\xc4\xa4\xae\x06\x67\x26\xe6\x89\x34\x41\x75\x90\xa8\x4e\x65\x39\xb3\x33\xde\x8d\x4d\x6b\x03\x79\x14\x95\x5c\xa8\x79\x78\xe3\x48\xf5\x4d\xa7\xdf\x8d\x34\xcb\x96\x91\xd6\xd2\x60\xc8\x37\x1f\x8f\xbc\x20\x0c\xde\xea\x4e\xd1\xaf\xed\x9b\x1a\x7b\xab\x34\x24\xbf\x7c\xdd\x77\xce\xba\x09\xa2\x64\x1d\x3d\x03\x00\x00\xff\xff\x2f\xbb\x08\xce\x04\x01\x00\x00")
 
 func _1_create_table_eventUpSqlBytes() ([]byte, error) {
 	return bindataRead(
@@ -114,7 +114,7 @@ func _1_create_table_eventUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "1_create_table_event.up.sql", size: 261, mode: os.FileMode(420), modTime: time.Unix(1563521439, 0)}
+	info := bindataFileInfo{name: "1_create_table_event.up.sql", size: 260, mode: os.FileMode(420), modTime: time.Unix(1564046282, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -134,7 +134,7 @@ func bindataGo() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "bindata.go", size: 0, mode: os.FileMode(420), modTime: time.Unix(1563521463, 0)}
+	info := bindataFileInfo{name: "bindata.go", size: 0, mode: os.FileMode(420), modTime: time.Unix(1564048019, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

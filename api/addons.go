@@ -28,7 +28,7 @@ func Convert(e pkg.Event) Event {
 		Custodian:  Identifier(e.Custodian),
 		ConsentId:  e.ConsentId,
 		ExternalId: e.ExternalId,
-		State:      e.State,
+		Name:       e.Name,
 		Payload:    e.Payload,
 		RetryCount: e.RetryCount,
 		Uuid:       e.Uuid,
