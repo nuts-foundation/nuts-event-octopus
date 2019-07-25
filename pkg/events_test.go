@@ -91,7 +91,10 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 
 		time.Sleep(30 * time.Millisecond)
 
-		evts, _ := i.List()
+		evts, err := i.List()
+		if err != nil {
+			t.Error("Expected no error", err)
+		}
 		if len(*evts) != 1 {
 			t.Errorf("Expected 1 event in DB, found %d", len(*evts))
 		}
