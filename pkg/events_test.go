@@ -89,7 +89,7 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 
 		sc.Publish(ChannelConsentRequest, je)
 
-		time.Sleep(30 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 
 		evts, err := i.List()
 		if err != nil {

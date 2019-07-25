@@ -295,7 +295,7 @@ func (eo *EventOctopus) SaveOrUpdate(event Event) error {
 
 
 	if err == nil || gorm.IsRecordNotFoundError(err) {
-		eo.Db.Save(event)
+		eo.Db.Debug().Save(&event)
 	} else {
 		tx.Rollback()
 		return err
