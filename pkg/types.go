@@ -33,13 +33,19 @@ type Event struct {
 
 type EventHandlerCallback func(event *Event)
 
-const EventStateRequested = "requested"
-const EventStateOffered = "offered"
-const EventStateToBeAccepted = "to be accepted"
-const EventStateAccepted = "accepted"
-const EventStateFinalized = "finalized"
-const EventStateToBePersisted = "to be persisted"
-const EventStateCompleted = "completed"
-const EventStateToBeError = "error"
-
 const ChannelConsentRequest = "consentRequest"
+
+const EventConsentRequestConstructed = "consentRequest constructed"
+const EventConsentRequestInFlight = "consentRequest in flight"
+const EventConsentRequestFlowErrored = "consentRequest flow errored"
+const EventConsentRequestFlowSuccess = "consentRequest flow success"
+const EventDistributedConsentRequestReceived = "distributed ConsentRequest received"
+const EventAllSignaturesPresent = "all signatures present"
+const EventInFinalFlight = "consentRequest in flight for final state"
+const EventConsentRequestValid = "consentRequest valid"
+const EventConsentRequestAcked = "consentRequest acked"
+const EventConsentRequestNacked = "consentRequest nacked"
+const EventAttachmentSigned = "attachment signed"
+const EventConsentDistributed = "consent distributed"
+const EventCompleted = "completed"
+const EventErrored = "error"
