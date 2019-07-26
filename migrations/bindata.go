@@ -114,7 +114,7 @@ func _1_create_table_eventUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "1_create_table_event.up.sql", size: 260, mode: os.FileMode(420), modTime: time.Unix(1564046282, 0)}
+	info := bindataFileInfo{name: "1_create_table_event.up.sql", size: 260, mode: os.FileMode(420), modTime: time.Unix(1564053768, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -134,7 +134,7 @@ func bindataGo() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "bindata.go", size: 0, mode: os.FileMode(420), modTime: time.Unix(1564048019, 0)}
+	info := bindataFileInfo{name: "bindata.go", size: 0, mode: os.FileMode(420), modTime: time.Unix(1564138692, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

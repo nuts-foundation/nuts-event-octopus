@@ -90,7 +90,7 @@ components:
         - retryCount
         - externalId
         - consentId
-        - custodian
+        - initiatorLegalEntity
         - payload
       properties:
         uuid:
@@ -105,12 +105,12 @@ components:
           description: "0 to X"
         externalId:
           type: string
-          description: "ID calculated by crypto using BSN and private key of custodian"
+          description: "ID calculated by crypto using BSN and private key of initiatorLegalEntity"
         consentId:
           type: string
           format: uuid
           description: "V4 UUID assigned by Corda to a record"
-        custodian:
+        initiatorLegalEntity:
           $ref: "#/components/schemas/Identifier"
         payload:
           type: string
