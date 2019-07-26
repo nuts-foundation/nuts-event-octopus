@@ -33,7 +33,7 @@ func TestEventOctopus_Configure(t *testing.T) {
 
 func TestEventOctopus_Start(t *testing.T) {
 	eo := testEventOctopus()
-	eo.Configure()
+	_ = eo.Configure()
 	defer eo.Shutdown()
 
 	t.Run("feedbackChannel receives nil value on default config", func(t *testing.T) {
@@ -46,8 +46,8 @@ func TestEventOctopus_Start(t *testing.T) {
 func TestEventOctopus_Shutdown(t *testing.T) {
 	t.Run("Terminating zmqCtx does not give errors for default values", func(t *testing.T) {
 		eo := testEventOctopus()
-		eo.Configure()
-		eo.Shutdown()
+		_ = eo.Configure()
+		_ = eo.Shutdown()
 
 		if err := eo.Shutdown(); err != nil {
 			t.Errorf("Expected no error, got %v", err)
@@ -55,8 +55,18 @@ func TestEventOctopus_Shutdown(t *testing.T) {
 	})
 }
 
+var event = Event{
+	RetryCount:           0,
+	Payload:              "test",
+	Name:                 EventConsentRequestConstructed,
+	ExternalId:           "e_id",
+	ConsentId:            uuid.NewV4().String(),
+	InitiatorLegalEntity: "urn:nuts:entity:test",
+}
+
 func TestEventOctopus_EventPersisted(t *testing.T) {
-	i := EventOctopusIntance()
+	//i := EventOctopusIntance()
+	i := testEventOctopus()
 	i.Config.Connectionstring = "file::memory:?cache=shared"
 	if err := i.Start(); err != nil {
 		fmt.Printf("%v\n", err)
@@ -65,29 +75,20 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 	if err := i.RunMigrations(i.Db.DB()); err != nil {
 		fmt.Printf("%v\n", err)
 	}
-
-	event := Event{
-		RetryCount: 0,
-		Payload:    "test",
-		Name:       EventStateOffered,
-		ExternalId: "e_id",
-		ConsentId:  uuid.NewV4().String(),
-		Custodian:  "urn:nuts:custodian:test",
-	}
+	defer i.Shutdown()
 
 	t.Run("a published event is persisted in db", func(t *testing.T) {
-		sc := stanConnection()
-		defer sc.Close()
-		defer emptyTable()
-
-		u := uuid.NewV4().String()
+		stanClient := stanConnection()
+		defer stanClient.Close()
+		defer emptyTable(i)
 
 		e := event
+		u := uuid.NewV4().String()
 		e.Uuid = u
 
 		je, _ := json.Marshal(event)
 
-		sc.Publish(ChannelConsentRequest, je)
+		_ = stanClient.Publish(ChannelConsentRequest, je)
 
 		time.Sleep(500 * time.Millisecond)
 
@@ -103,7 +104,7 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 	t.Run("a published event is updated in db", func(t *testing.T) {
 		sc := stanConnection()
 		defer sc.Close()
-		defer emptyTable()
+		defer emptyTable(i)
 
 		u := uuid.NewV4().String()
 
@@ -111,12 +112,12 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 		e.Uuid = u
 
 		je, _ := json.Marshal(e)
-		sc.Publish(ChannelConsentRequest, je)
+		_ = sc.Publish(ChannelConsentRequest, je)
 
-		e.Name = EventStateCompleted
+		e.Name = EventConsentRequestInFlight
 
 		je, _ = json.Marshal(e)
-		sc.Publish(ChannelConsentRequest, je)
+		_ = sc.Publish(ChannelConsentRequest, je)
 
 		time.Sleep(100 * time.Millisecond)
 
@@ -124,16 +125,122 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 		if len(*evts) != 1 {
 			t.Fatalf("Expected to have received exactly 1 event, got %v", len(*evts))
 		}
-		if (*evts)[0].Name != EventStateCompleted {
-			t.Errorf("Expected event to have name %s, found %s", EventStateCompleted, (*evts)[0].Name)
+		if (*evts)[0].Name != EventConsentRequestInFlight {
+			t.Errorf("Expected event to have name %s, found %s", EventConsentRequestInFlight, (*evts)[0].Name)
 		}
 	})
 }
 
-func emptyTable() {
+func TestEventOctopus_Subscribe(t *testing.T) {
+	t.Run("subscribe to event with handler", func(t *testing.T) {
+		called := false
+
+		i := testEventOctopus()
+		_ = i.Start()
+		defer i.Shutdown()
+
+		_ = i.Subscribe("event-logic",
+			"EventRequestEvents",
+			map[string]EventHandlerCallback{
+				event.Name: func(event *Event) {
+					called = true
+					t.Log("callback received")
+				},
+			})
+
+		publisher, _ := i.EventPublisher("event-octopus-test")
+
+		je, _ := json.Marshal(event)
+		_ = publisher.Publish("EventRequestEvents", je)
+
+		time.Sleep(500 * time.Millisecond)
+		if !called {
+			t.Error("callback should have been called")
+		}
+	})
+
+	t.Run("adding handlers for the same service and subject should merge the handlers", func(t *testing.T) {
+		i := testEventOctopus()
+		_ = i.Start()
+		defer i.Shutdown()
+
+		subject := "subject"
+		service := "test"
+
+		if _, ok := i.channelHandlers[service][subject]; ok {
+			t.Error("expected an empty list fo channelhandlers")
+		}
+
+		_ = i.Subscribe(service,
+			subject,
+			map[string]EventHandlerCallback{
+				"foo": func(event *Event) {},
+			})
+
+		if _, ok := i.channelHandlers[service][subject]; !ok {
+			t.Error("expected a channelHandler")
+		}
+
+		_ = i.Subscribe(service,
+			subject,
+			map[string]EventHandlerCallback{
+				"bar": func(event *Event) {},
+			})
+
+		if i.channelHandlers[service][subject].handlers["foo"] == nil {
+			t.Error("expected handlers to be merged")
+		}
+
+		if i.channelHandlers[service][subject].handlers["bar"] == nil {
+			t.Error("expected handlers to be merged")
+		}
+	})
+
+	t.Run("two subscriptions for the same service should result in one connection", func(t *testing.T) {
+		i := testEventOctopus()
+		_ = i.Start()
+		defer i.Shutdown()
+
+		if len(i.stanClients) != 0 {
+			t.Errorf("expected 0 clients, got %v", len(i.stanClients))
+		}
+
+		_ = i.Subscribe("event-logic",
+			"EventRequestEvents",
+			map[string]EventHandlerCallback{
+				event.Name: func(event *Event) {},
+			})
+
+		if len(i.stanClients) != 1 {
+			t.Errorf("expected 1 clients, got %v", len(i.stanClients))
+		}
+
+		_ = i.Subscribe("event-logic",
+			"EventRequestEvents",
+			map[string]EventHandlerCallback{
+				"foo": func(event *Event) {},
+			})
+
+		if len(i.stanClients) != 1 {
+			t.Errorf("expected 1 clients, got %v", len(i.stanClients))
+		}
+
+		_ = i.Subscribe("other-service",
+			"EventRequestEvents",
+			map[string]EventHandlerCallback{
+				"bar": func(event *Event) {},
+			})
+
+		if len(i.stanClients) != 2 {
+			t.Errorf("expected 1 clients, got %v", len(i.stanClients))
+		}
+
+	})
+}
+
+func emptyTable(eo *EventOctopus) {
 	event := &Event{}
-	i := EventOctopusIntance()
-	defer i.Db.Delete(&event)
+	defer eo.Db.Delete(&event)
 }
 
 func stanConnection() natsClient.Conn {
@@ -156,7 +263,44 @@ func testEventOctopus() *EventOctopus {
 			RetryInterval: 1,
 			NatsPort:      4222,
 		},
+		stanClients:     make(map[string]natsClient.Conn),
+		channelHandlers: make(map[string]map[string]ChannelHandlers),
 	}
 
 	return &eo
+}
+
+func TestEventOctopus_Unsubscribe(t *testing.T) {
+	i := testEventOctopus()
+	i.Start()
+	i.Subscribe("service", "subject", map[string]EventHandlerCallback{"foo": func(event *Event) {}, "bar": func(event *Event) {}})
+	i.Subscribe("service", "other-subject", map[string]EventHandlerCallback{"foo": func(event *Event) {}, "bar": func(event *Event) {}})
+
+	if len(i.channelHandlers["service"]) != 2 {
+		t.Errorf("expected 2 channelHandlers, got %v", len(i.channelHandlers["service"]))
+	}
+
+	if len(i.stanClients) != 1 {
+		t.Error("expected 1 connections")
+	}
+
+	i.Unsubscribe("service", "subject")
+
+	if len(i.channelHandlers["service"]) != 1 {
+		t.Errorf("expected 1 channelHandlers, got %v", len(i.channelHandlers["service"]))
+	}
+
+	if len(i.stanClients) != 1 {
+		t.Error("expected 1 connections")
+	}
+
+	i.Unsubscribe("service", "other-subject")
+
+	if len(i.channelHandlers["service"]) != 0 {
+		t.Errorf("expected 0 channelHandlers, got %v", len(i.channelHandlers["service"]))
+	}
+
+	if len(i.stanClients) != 0 {
+		t.Error("expected all connections to be closed")
+	}
 }

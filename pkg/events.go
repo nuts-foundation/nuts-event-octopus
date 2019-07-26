@@ -52,6 +52,12 @@ type EventOctopusConfig struct {
 // EventOctopusClient is the client interface for publishing events
 type EventOctopusClient interface {
 	EventPublisher(clientId string) (natsClient.Conn, error)
+	Subscribe(service, subject string, callbacks map[string]EventHandlerCallback) error
+}
+
+type ChannelHandlers struct {
+	subscription natsClient.Subscription
+	handlers     map[string]EventHandlerCallback
 }
 
 // EventOctopus is the default implementation for EventOctopusInstance
@@ -61,6 +67,9 @@ type EventOctopus struct {
 	configDone bool
 	stanServer *natsServer.StanServer
 	Db         *gorm.DB
+	// Clients per service
+	stanClients     map[string]natsClient.Conn
+	channelHandlers map[string]map[string]ChannelHandlers
 }
 
 var instance *EventOctopus
@@ -75,12 +84,82 @@ func EventOctopusIntance() *EventOctopus {
 				NatsPort:         ConfigNatsPortDefault,
 				Connectionstring: ConfigConnectionStringDefault,
 			},
+			channelHandlers: make(map[string]map[string]ChannelHandlers),
+			stanClients:     make(map[string]natsClient.Conn),
 		}
 	})
 	return instance
 }
 
-// Configure initiates a ZQM context
+// Subscribe lets you subscribe to events for a service and subject. For each Event.name you can provide a callback function
+func (octopus *EventOctopus) Subscribe(service, subject string, handlers map[string]EventHandlerCallback) error {
+	// create a new ChannelHandler if it does not exists for the combination of service and subject
+	if channelHandlers, ok := octopus.channelHandlers[service][subject]; !ok {
+
+		channelHandlers := ChannelHandlers{
+			handlers: handlers,
+		}
+		var stanClient natsClient.Conn
+		if stanClient, ok = octopus.stanClients[service]; !ok {
+			var err error
+			if stanClient, err = octopus.Client(service); err != nil {
+				return err
+			}
+			octopus.stanClients[service] = stanClient
+		}
+
+		channelHandlers.subscription, _ = stanClient.Subscribe(subject, func(msg *natsClient.Msg) {
+			event := &Event{}
+			// Unmarshal JSON that represents the Order data
+			err := json.Unmarshal(msg.Data, &event)
+			if err != nil {
+				logrus.Errorf("Error unmarshalling event: %v", err)
+				return
+			}
+			handler := channelHandlers.handlers[event.Name]
+			if handler == nil {
+				logrus.Infof("Event without handler %v", event.Name)
+				return
+			}
+			handler(event)
+		})
+		// does the inner map exists?
+		if _, ok := octopus.channelHandlers[service]; !ok {
+			octopus.channelHandlers[service] = make(map[string]ChannelHandlers)
+		}
+		octopus.channelHandlers[service][subject] = channelHandlers
+	} else {
+		// merge handlers
+		for key, handler := range handlers {
+			channelHandlers.handlers[key] = handler
+		}
+	}
+	return nil
+}
+
+func (octopus *EventOctopus) Unsubscribe(service, subject string) error {
+	handlers, ok := octopus.channelHandlers[service][subject]
+	if !ok {
+		return fmt.Errorf("no subscription found for %s.%s", service, subject)
+	}
+
+	if err := handlers.subscription.Unsubscribe(); err != nil {
+		return err
+	}
+	// delete subject from channelHandlers
+	delete(octopus.channelHandlers[service], subject)
+
+	// if this was the only subject for this service, remove the service as well
+	if len(octopus.channelHandlers[service]) == 0 {
+		delete(octopus.channelHandlers, service)
+		octopus.stanClients[service].Close()
+		delete(octopus.stanClients, service)
+	}
+
+	return nil
+}
+
+// Configure initiates a STAN context
 func (octopus *EventOctopus) Configure() error {
 	var (
 		err error
@@ -190,24 +269,27 @@ func (octopus *EventOctopus) Start() error {
 
 	// event store client
 	return octopus.eventStoreClient()
+	//return nil
+}
+
+func (octopus *EventOctopus) Client(clientID string) (natsClient.Conn, error) {
+	return natsClient.Connect(
+		"nuts",
+		clientID,
+		natsClient.NatsURL(fmt.Sprintf("nats://localhost:%d", octopus.Config.NatsPort)),
+	)
 }
 
 func (octopus *EventOctopus) eventStoreClient() error {
 	logrus.Tracef("Connecting to Stan-Streaming server @ nats://localhost:%d", octopus.Config.NatsPort)
 
-	sc, err := natsClient.Connect(
-		"nuts",
-		"event-store",
-		natsClient.NatsURL(fmt.Sprintf("nats://localhost:%d", octopus.Config.NatsPort)),
-	)
-
+	sc, err := octopus.Client("event-store")
 	if err != nil {
 		return err
 	}
 	// Subscribe with manual ack mode
 	// todo store Subscription?
 	_, err = sc.Subscribe(ChannelConsentRequest, func(msg *natsClient.Msg) {
-		msg.Ack() // Manual ACK
 		event := Event{}
 		// Unmarshal JSON that represents the Order data
 		err := json.Unmarshal(msg.Data, &event)
@@ -221,7 +303,7 @@ func (octopus *EventOctopus) eventStoreClient() error {
 		if err := octopus.SaveOrUpdate(event); err != nil {
 			logrus.Errorf("Failed to store event: %v", err)
 		}
-
+		_ = msg.Ack() // Manual ACK
 	}, natsClient.DurableName("consent-request-durable"),
 		natsClient.MaxInflight(1),
 		natsClient.SetManualAckMode(),
@@ -249,33 +331,33 @@ func (octopus *EventOctopus) Shutdown() error {
 	}
 
 	if octopus.Db != nil {
-		octopus.Db.Close()
+		_ = octopus.Db.Close()
 	}
 
 	return err
 }
 
 // List returns all current events from Db
-func (eo *EventOctopus) List() (*[]Event, error) {
+func (octopus *EventOctopus) List() (*[]Event, error) {
 	events := &[]Event{}
 
-	err := eo.Db.Debug().Find(events).Error
+	err := octopus.Db.Debug().Find(events).Error
 
 	return events, err
 }
 
 // GetEvent returns single event or not based on given uuid
-func (eo *EventOctopus) GetEvent(uuid string) (*Event, error) {
+func (octopus *EventOctopus) GetEvent(uuid string) (*Event, error) {
 	event := &Event{}
 
-	err := eo.Db.Debug().Where("uuid = ?", uuid).First(&event).Error
+	err := octopus.Db.Debug().Where("uuid = ?", uuid).First(&event).Error
 
 	return event, err
 }
 
-func (eo *EventOctopus) SaveOrUpdate(event Event) error {
+func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
 	// start transaction
-	tx := eo.Db.Begin()
+	tx := octopus.Db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -291,11 +373,10 @@ func (eo *EventOctopus) SaveOrUpdate(event Event) error {
 	target := &Event{}
 	// When using real DB:
 	// err := eo.Db.Set("gorm:query_option", "FOR UPDATE").Where("uuid = ?", event.Uuid).First(&target).Error
-	err := eo.Db.Debug().Where("uuid = ?", event.Uuid).First(&target).Error
-
+	err := octopus.Db.Debug().Where("uuid = ?", event.Uuid).First(&target).Error
 
 	if err == nil || gorm.IsRecordNotFoundError(err) {
-		eo.Db.Debug().Save(&event)
+		octopus.Db.Debug().Save(&event)
 	} else {
 		tx.Rollback()
 		return err

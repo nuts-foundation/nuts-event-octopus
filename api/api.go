@@ -45,3 +45,7 @@ func (w ApiWrapper) List(ctx echo.Context) error {
 func (w ApiWrapper) GetEvent(ctx echo.Context, uuid string) error {
 	panic("implement me")
 }
+
+func (w ApiWrapper) GetEventByExternalId(ctx echo.Context, externalId string) error {
+	panic("implement me")
+}

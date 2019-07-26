@@ -24,14 +24,14 @@ import (
 
 func Convert(e pkg.Event) Event {
 	return Event{
-		Error:      e.Error,
-		InitiatorLegalEntity:  Identifier(e.InitiatorLegalEntity),
-		ConsentId:  e.ConsentId,
-		ExternalId: e.ExternalId,
-		Name:       e.Name,
-		Payload:    e.Payload,
-		RetryCount: e.RetryCount,
-		Uuid:       e.Uuid,
+		Error:                e.Error,
+		InitiatorLegalEntity: Identifier(e.InitiatorLegalEntity),
+		ConsentId:            e.ConsentId,
+		ExternalId:           e.ExternalId,
+		Name:                 e.Name,
+		Payload:              e.Payload,
+		RetryCount:           e.RetryCount,
+		Uuid:                 e.Uuid,
 	}
 }
 

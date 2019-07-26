@@ -6,6 +6,7 @@ require (
 	github.com/deepmap/oapi-codegen v1.1.6
 	github.com/getkin/kin-openapi v0.2.0
 	github.com/golang-migrate/migrate/v4 v4.5.0
+	github.com/golang/mock v1.3.1
 	github.com/jinzhu/gorm v1.9.10
 	github.com/labstack/echo/v4 v4.1.5
 	github.com/mattn/go-sqlite3 v1.11.0 // indirect

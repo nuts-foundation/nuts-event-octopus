@@ -98,4 +98,3 @@ func RegisterHandlers(router runtime.EchoRouter, si ServerInterface) {
 	router.POST("/events/:uuid", wrapper.GetEvent)
 
 }
-
