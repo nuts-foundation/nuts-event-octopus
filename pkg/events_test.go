@@ -65,9 +65,10 @@ var event = Event{
 }
 
 func TestEventOctopus_EventPersisted(t *testing.T) {
-	//i := EventOctopusIntance()
 	i := testEventOctopus()
+	defer i.Shutdown()
 	i.Config.Connectionstring = "file::memory:?cache=shared"
+	i.Configure()
 	if err := i.Start(); err != nil {
 		fmt.Printf("%v\n", err)
 	}
@@ -75,7 +76,6 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 	if err := i.RunMigrations(i.Db.DB()); err != nil {
 		fmt.Printf("%v\n", err)
 	}
-	defer i.Shutdown()
 
 	t.Run("a published event is persisted in db", func(t *testing.T) {
 		stanClient := stanConnection()
@@ -150,8 +150,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 
 		publisher, _ := i.EventPublisher("event-octopus-test")
 
-		je, _ := json.Marshal(event)
-		_ = publisher.Publish("EventRequestEvents", je)
+		_ = publisher.Publish("EventRequestEvents", event)
 
 		time.Sleep(500 * time.Millisecond)
 		if !called {
@@ -198,7 +197,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 
 	t.Run("two subscriptions for the same service should result in one connection", func(t *testing.T) {
 		i := testEventOctopus()
-		_ = i.Start()
+		_ = i.nats() // use nats() instead of Start() so there will not be a service for the event-store
 		defer i.Shutdown()
 
 		if len(i.stanClients) != 0 {
@@ -232,7 +231,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 			})
 
 		if len(i.stanClients) != 2 {
-			t.Errorf("expected 1 clients, got %v", len(i.stanClients))
+			t.Errorf("expected 2 clients, got %v", len(i.stanClients))
 		}
 
 	})
@@ -258,21 +257,13 @@ func stanConnection() natsClient.Conn {
 }
 
 func testEventOctopus() *EventOctopus {
-	eo := EventOctopus{
-		Config: EventOctopusConfig{
-			RetryInterval: 1,
-			NatsPort:      4222,
-		},
-		stanClients:     make(map[string]natsClient.Conn),
-		channelHandlers: make(map[string]map[string]ChannelHandlers),
-	}
-
-	return &eo
+	return EventOctopusIntance()
 }
 
 func TestEventOctopus_Unsubscribe(t *testing.T) {
 	i := testEventOctopus()
-	i.Start()
+	i.nats() // use nats() instead of Start() so there will not be a service for the event-store
+	defer i.Shutdown()
 	i.Subscribe("service", "subject", map[string]EventHandlerCallback{"foo": func(event *Event) {}, "bar": func(event *Event) {}})
 	i.Subscribe("service", "other-subject", map[string]EventHandlerCallback{"foo": func(event *Event) {}, "bar": func(event *Event) {}})
 

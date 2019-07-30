@@ -40,7 +40,7 @@ const ConfigConnectionstring = "connectionstring"
 
 const ConfigRetryIntervalDefault = 60
 const ConfigNatsPortDefault = 4222
-const ConfigConnectionStringDefault = "file:not_used?mode=memory&cache=shared"
+const ConfigConnectionStringDefault = "file:eventstore.db"
 
 // EventOctopusConfig holds the config for the EventOctopusInstance
 type EventOctopusConfig struct {
@@ -49,9 +49,13 @@ type EventOctopusConfig struct {
 	Connectionstring string
 }
 
+type IEventPublisher interface {
+	Publish(subject string, event Event) error
+}
+
 // EventOctopusClient is the client interface for publishing events
 type EventOctopusClient interface {
-	EventPublisher(clientId string) (natsClient.Conn, error)
+	EventPublisher(clientId string) (IEventPublisher, error)
 	Subscribe(service, subject string, callbacks map[string]EventHandlerCallback) error
 }
 
@@ -73,7 +77,7 @@ type EventOctopus struct {
 }
 
 var instance *EventOctopus
-var oneInstance sync.Once
+var oneInstance = &sync.Once{}
 
 // EventOctopusIntance returns the EventOctopus singleton
 func EventOctopusIntance() *EventOctopus {
@@ -99,13 +103,9 @@ func (octopus *EventOctopus) Subscribe(service, subject string, handlers map[str
 		channelHandlers := ChannelHandlers{
 			handlers: handlers,
 		}
-		var stanClient natsClient.Conn
-		if stanClient, ok = octopus.stanClients[service]; !ok {
-			var err error
-			if stanClient, err = octopus.Client(service); err != nil {
-				return err
-			}
-			octopus.stanClients[service] = stanClient
+		stanClient, err := octopus.Client(service);
+		if err != nil {
+			return err
 		}
 
 		channelHandlers.subscription, _ = stanClient.Subscribe(subject, func(msg *natsClient.Msg) {
@@ -240,10 +240,10 @@ func (octopus *EventOctopus) nats() error {
 	var err error
 
 	octopus.stanServer, err = natsServer.RunServerWithOpts(opts, &sopts)
-	octopus.stanServer.ClusterID()
 	if err != nil {
 		return fmt.Errorf("Unable to start Nats-streaming server: %v", err)
 	}
+	octopus.stanServer.ClusterID()
 
 	logrus.Infof("Stan server started at %s:%d with ID: %v", sopts.Host, sopts.Port, octopus.stanServer.ClusterID())
 
@@ -273,11 +273,41 @@ func (octopus *EventOctopus) Start() error {
 }
 
 func (octopus *EventOctopus) Client(clientID string) (natsClient.Conn, error) {
-	return natsClient.Connect(
+	if client, ok := octopus.stanClients[clientID]; ok {
+		return client, nil
+	}
+
+	client, err := natsClient.Connect(
 		"nuts",
 		clientID,
 		natsClient.NatsURL(fmt.Sprintf("nats://localhost:%d", octopus.Config.NatsPort)),
 	)
+	if err == nil {
+		octopus.stanClients[clientID] = client
+	}
+	return client, err
+}
+
+// EventPublisher is a small wrapper around a natsClient so the user can pass an Event to Publish instead of a []byte
+type EventPublisher struct {
+	conn natsClient.Conn
+}
+
+// Publish accepts an Event, than marshals and publishes it at the subject choice
+func (p EventPublisher) Publish(subject string, event Event) error {
+	data, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	return p.conn.Publish(subject, data)
+}
+
+func (octopus *EventOctopus) EventPublisher(clientId string) (IEventPublisher, error) {
+	conn, err := octopus.Client(clientId)
+	if err != nil {
+		return nil, err
+	}
+	return &EventPublisher{conn: conn}, nil
 }
 
 func (octopus *EventOctopus) eventStoreClient() error {
@@ -301,7 +331,7 @@ func (octopus *EventOctopus) eventStoreClient() error {
 		logrus.Debugf("Received event [%d]: %+v\n", msg.Sequence, event)
 
 		if err := octopus.SaveOrUpdate(event); err != nil {
-			logrus.Errorf("Failed to store event: %v", err)
+			logrus.WithError(err).Error("Failed to store event", err)
 		}
 		_ = msg.Ack() // Manual ACK
 	}, natsClient.DurableName("consent-request-durable"),
@@ -312,14 +342,6 @@ func (octopus *EventOctopus) eventStoreClient() error {
 	logrus.Infof("Connected to Stan-Streaming server @ nats://localhost:%d", octopus.Config.NatsPort)
 
 	return err
-}
-
-func (octopus *EventOctopus) EventPublisher(clientId string) (natsClient.Conn, error) {
-	return natsClient.Connect(
-		"nuts",
-		clientId,
-		natsClient.NatsURL(fmt.Sprintf("nats://localhost:%d", octopus.Config.NatsPort)),
-	)
 }
 
 // Shutdown closes the connection to the DB and the natsServer server
@@ -333,6 +355,9 @@ func (octopus *EventOctopus) Shutdown() error {
 	if octopus.Db != nil {
 		_ = octopus.Db.Close()
 	}
+
+	// reset the sync.once so a new connection can be created
+	oneInstance = new(sync.Once)
 
 	return err
 }

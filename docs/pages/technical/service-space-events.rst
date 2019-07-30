@@ -38,7 +38,7 @@ Payload per event
 +------------------------------------------+                     |                                                                                                             |
 | ConsentRequest flow success              |                     |                                                                                                             |
 +------------------------------------------+---------------------+-------------------------------------------------------------------------------------------------------------+
-| Distributed ConsentRequest received      | NewConsentRequest   | In principle the same as the NewConsentRequest above, but it'll contain AttachmentSignatures when available |
+| Distributed ConsentRequest received      | FullConsentRequest  | In principle the same as the NewConsentRequest above, but it'll contain AttachmentSignatures when available |
 +------------------------------------------+                     | This event will also be the starting point for any other node than the initiating one                       |
 | All signatures present                   |                     |                                                                                                             |
 +------------------------------------------+                     |                                                                                                             |
