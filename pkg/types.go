@@ -18,6 +18,8 @@
 
 package pkg
 
+import "fmt"
+
 // Event is the type used for Gorm
 type Event struct {
 	ConsentId            string `json:"consentId"`
@@ -29,6 +31,10 @@ type Event struct {
 	RetryCount           int32  `json:"retryCount"`
 	Name                 string `gorm:"not null";json:"name"`
 	Uuid                 string `gorm:"PRIMARY_KEY";json:"uuid"`
+}
+
+func (e Event) string() string {
+	return fmt.Sprintf("Name: %v, uuid: %v, externalId: %v, retryCount: %v, error: %v", e.Name, e.Uuid, e.ExternalId, e.RetryCount, e.Error )
 }
 
 type EventHandlerCallback func(event *Event)
