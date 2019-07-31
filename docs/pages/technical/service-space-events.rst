@@ -15,7 +15,7 @@ Event model
 
     event:
         UUID: string                   # V4 UUID
-        name: string                  # ['requested', 'offered', 'to be accepted', 'accepted', 'finalized', 'to be persisted', 'completed', 'error']
+        name: string                   # event name, see table
         retryCount: int                # 0 to X
         externalId: string             # ID calculated by crypto using BSN and private key of custodian
         consentId: string              # V4 UUID assigned by Corda to a record

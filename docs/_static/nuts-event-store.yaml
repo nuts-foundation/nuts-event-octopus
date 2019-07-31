@@ -99,7 +99,12 @@ components:
           format: uuid
         name:
           type: string
-          enum: ['requested', 'offered', 'to be accepted', 'accepted', 'finalized', 'to be persisted', 'completed', 'error']
+          enum: [
+            'consentRequest constructed', 'consentRequest in flight', 'consentRequest flow errored', 'consentRequest flow success',
+            'distributed ConsentRequest received', 'all signatures present', 'consentRequest in flight for final state', 'consentRequest valid',
+            'consentRequest acked', 'consentRequest nacked', 'attachment signed', 'consent distributed',
+            'completed', 'error'
+          ]
         retryCount:
           type: integer
           description: "0 to X"
@@ -110,6 +115,10 @@ components:
           type: string
           format: uuid
           description: "V4 UUID assigned by Corda to a record"
+        transactionId:
+          type: string
+          format: uuid
+          description: "V4 UUID assigned by Corda to a transaction"
         initiatorLegalEntity:
           $ref: "#/components/schemas/Identifier"
         payload:
