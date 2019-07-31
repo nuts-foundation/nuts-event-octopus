@@ -111,11 +111,9 @@ components:
           description: "ID calculated by crypto using BSN and private key of initiatorLegalEntity"
         consentId:
           type: string
-          format: uuid
           description: "V4 UUID assigned by Corda to a record"
         transactionId:
           type: string
-          format: uuid
           description: "V4 UUID assigned by Corda to a transaction"
         initiatorLegalEntity:
           $ref: "#/components/schemas/Identifier"
