@@ -89,7 +89,6 @@ components:
         - name
         - retryCount
         - externalId
-        - consentId
         - initiatorLegalEntity
         - payload
       properties:
