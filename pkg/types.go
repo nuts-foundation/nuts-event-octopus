@@ -33,7 +33,7 @@ type Event struct {
 	Uuid                 string `gorm:"PRIMARY_KEY";json:"uuid"`
 }
 
-func (e Event) string() string {
+func (e Event) String() string {
 	return fmt.Sprintf("Name: %v, uuid: %v, externalId: %v, retryCount: %v, error: %v", e.Name, e.Uuid, e.ExternalId, e.RetryCount, e.Error )
 }
 
