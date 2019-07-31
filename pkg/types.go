@@ -24,13 +24,13 @@ import "fmt"
 type Event struct {
 	ConsentId            string `json:"consentId"`
 	TransactionId        string `json:"transactionId"`
-	InitiatorLegalEntity string `gorm:"not null";json:"initiatorLegalEntity"`
+	InitiatorLegalEntity string `gorm:"not null" json:"initiatorLegalEntity"`
 	Error                *string `json:"error"`
-	ExternalId           string `gorm:"not null";json:"externalId"`
-	Payload              string `gorm:"not null";json:"payload"`
+	ExternalId           string `gorm:"not null" json:"externalId"`
+	Payload              string `gorm:"not null" json:"payload"`
 	RetryCount           int32  `json:"retryCount"`
-	Name                 string `gorm:"not null";json:"name"`
-	Uuid                 string `gorm:"PRIMARY_KEY";json:"uuid"`
+	Name                 string `gorm:"not null" json:"name"`
+	Uuid                 string `gorm:"PRIMARY_KEY" json:"uuid"`
 }
 
 func (e Event) String() string {
