@@ -95,7 +95,6 @@ components:
         uuid:
           type: string
           description: "V4 UUID"
-          format: uuid
         name:
           type: string
           enum: [
