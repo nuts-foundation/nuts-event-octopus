@@ -389,7 +389,7 @@ func (octopus *EventOctopus) GetEvent(uuid string) (*Event, error) {
 func (octopus *EventOctopus) GetEventByExternalId(externalId string) (*Event, error) {
 	event := &Event{}
 
-	err := octopus.Db.Debug().Where("externalId = ?", externalId).First(&event).Error
+	err := octopus.Db.Debug().Where("external_id = ?", externalId).First(&event).Error
 
 	if gorm.IsRecordNotFoundError(err) {
 		return nil, nil
