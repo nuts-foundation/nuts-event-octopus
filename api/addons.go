@@ -26,7 +26,7 @@ func Convert(e pkg.Event) Event {
 	return Event{
 		Error:                e.Error,
 		InitiatorLegalEntity: Identifier(e.InitiatorLegalEntity),
-		ConsentId:            e.ConsentId,
+		ConsentId:            &e.ConsentId,
 		ExternalId:           e.ExternalId,
 		Name:                 e.Name,
 		Payload:              e.Payload,
