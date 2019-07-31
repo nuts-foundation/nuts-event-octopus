@@ -20,15 +20,15 @@ package pkg
 
 // Event is the type used for Gorm
 type Event struct {
-	ConsentId            string
-	TransactionId        string
-	InitiatorLegalEntity string `gorm:"not null"`
-	Error                *string
-	ExternalId           string `gorm:"not null"`
-	Payload              string `gorm:"not null"`
-	RetryCount           int32
-	Name                 string `gorm:"not null"`
-	Uuid                 string `gorm:"PRIMARY_KEY"`
+	ConsentId            string `json:"consentId"`
+	TransactionId        string `json:"transactionId"`
+	InitiatorLegalEntity string `gorm:"not null";json:"initiatorLegalEntity"`
+	Error                *string `json:"error"`
+	ExternalId           string `gorm:"not null";json:"externalId"`
+	Payload              string `gorm:"not null";json:"payload"`
+	RetryCount           int32  `json:"retryCount"`
+	Name                 string `gorm:"not null";json:"name"`
+	Uuid                 string `gorm:"PRIMARY_KEY";json:"uuid"`
 }
 
 type EventHandlerCallback func(event *Event)
