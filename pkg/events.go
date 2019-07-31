@@ -235,6 +235,7 @@ func (octopus *EventOctopus) nats() error {
 	opts.ID = "nuts"
 
 	sopts := natsServer.DefaultNatsServerOptions
+	sopts.Host = "0.0.0.0"
 	sopts.Port = octopus.Config.NatsPort
 
 	var err error
