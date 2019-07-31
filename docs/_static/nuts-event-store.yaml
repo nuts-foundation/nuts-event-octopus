@@ -21,7 +21,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/EventListResponse"
   /events/{uuid}:
-    post:
+    get:
       summary: "Find a specific event"
       operationId: getEvent
       tags:
@@ -49,7 +49,7 @@ paths:
               schema:
                 type: string
   /events/by_external_id/{external_id}:
-    post:
+    get:
       summary: "Find a specific event by its externalId"
       operationId: getEventByExternalId
       tags:

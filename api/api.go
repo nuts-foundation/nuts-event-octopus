@@ -43,9 +43,33 @@ func (w ApiWrapper) List(ctx echo.Context) error {
 }
 
 func (w ApiWrapper) GetEvent(ctx echo.Context, uuid string) error {
-	panic("implement me")
+	event, err := w.Eo.GetEvent(uuid)
+
+	if err != nil {
+		return fmt.Errorf("Error while fetching event from DB: %v", err)
+	}
+
+	if event == nil {
+		return ctx.NoContent(404)
+	}
+
+	resp := Convert(*event)
+
+	return ctx.JSON(200, resp)
 }
 
 func (w ApiWrapper) GetEventByExternalId(ctx echo.Context, externalId string) error {
-	panic("implement me")
+	event, err := w.Eo.GetEventByExternalId(externalId)
+
+	if err != nil {
+		return fmt.Errorf("Error while fetching event from DB: %v", err)
+	}
+
+	if event == nil {
+		return ctx.NoContent(404)
+	}
+
+	resp := Convert(*event)
+
+	return ctx.JSON(200, resp)
 }

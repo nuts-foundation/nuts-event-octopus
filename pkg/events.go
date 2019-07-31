@@ -378,6 +378,23 @@ func (octopus *EventOctopus) GetEvent(uuid string) (*Event, error) {
 
 	err := octopus.Db.Debug().Where("uuid = ?", uuid).First(&event).Error
 
+	if gorm.IsRecordNotFoundError(err) {
+		return nil, nil
+	}
+
+	return event, err
+}
+
+// GetEvent returns single event or not based on given uuid
+func (octopus *EventOctopus) GetEventByExternalId(externalId string) (*Event, error) {
+	event := &Event{}
+
+	err := octopus.Db.Debug().Where("externalId = ?", externalId).First(&event).Error
+
+	if gorm.IsRecordNotFoundError(err) {
+		return nil, nil
+	}
+
 	return event, err
 }
 
