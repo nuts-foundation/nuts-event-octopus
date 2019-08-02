@@ -10,7 +10,7 @@ The following configuration parameters are available for the event service.
 ===================================     ======================================  ========================================
 Key                                     Default                                 Description
 ===================================     ======================================  ========================================
-events.ConfigConnectionstring           file:not_used?mode=memory&cache=shared  db connection string for event store
+events.ConfigConnectionstring           file::memory:?cache=shared              db connection string for event store
 events.natsPort                         4222                                    Port for Nats to bind on
 events.retryInterval                    60                                      Retry delay in seconds for reconnecting
 ===================================     ======================================  ========================================

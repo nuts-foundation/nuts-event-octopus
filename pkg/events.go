@@ -40,7 +40,7 @@ const ConfigConnectionstring = "connectionstring"
 
 const ConfigRetryIntervalDefault = 60
 const ConfigNatsPortDefault = 4222
-const ConfigConnectionStringDefault = "file:eventstore.db"
+const ConfigConnectionStringDefault = "file::memory:?cache=shared"
 
 // EventOctopusConfig holds the config for the EventOctopusInstance
 type EventOctopusConfig struct {
