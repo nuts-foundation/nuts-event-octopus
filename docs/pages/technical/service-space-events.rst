@@ -30,13 +30,11 @@ Payload per event
 +------------------------------------------+---------------------+-------------------------------------------------------------------------------------------------------------+
 | Event name                               | Payload             | Description                                                                                                 |
 +==========================================+=====================+=============================================================================================================+
-| ConsentRequest constructed               | NewConsentRequest   | As defined by consent bridge, the attachment signatures will be an empty list                               |
+| ConsentRequest constructed               | FullConsentRequest  | As defined by consent bridge, the attachment signatures will be an empty list                               |
 +------------------------------------------+                     |                                                                                                             |
 | ConsentRequest in flight                 |                     |                                                                                                             |
 +------------------------------------------+                     |                                                                                                             |
 | ConsentRequest flow errored              |                     |                                                                                                             |
-+------------------------------------------+                     |                                                                                                             |
-| ConsentRequest flow success              |                     |                                                                                                             |
 +------------------------------------------+---------------------+-------------------------------------------------------------------------------------------------------------+
 | Distributed ConsentRequest received      | FullConsentRequest  | In principle the same as the NewConsentRequest above, but it'll contain AttachmentSignatures when available |
 +------------------------------------------+                     | This event will also be the starting point for any other node than the initiating one                       |
@@ -53,11 +51,13 @@ Payload per event
 | Attachment signed                        | AttachmentSignature | A single signature will be present in the event. When processed by Corda, the NewConsentRequest will be     |
 +------------------------------------------+                     | back with this signature included                                                                           |
 | ConsentRequest flow errored              |                     |                                                                                                             |
-+------------------------------------------+                     |                                                                                                             |
-| ConsentRequest flow success              |                     |                                                                                                             |
 +------------------------------------------+---------------------+-------------------------------------------------------------------------------------------------------------+
 | Consent distributed                      | ConsentState        | The final consent state                                                                                     |
 +------------------------------------------+---------------------+-------------------------------------------------------------------------------------------------------------+
+
+.. note::
+
+    todo: the events for the cancellation states still have to be added.
 
 Event types
 ===========
