@@ -34,12 +34,18 @@ import (
 	"sync"
 )
 
+// ConfigRetryInterval defines the string for the flagset
 const ConfigRetryInterval = "retryInterval"
+// ConfigNatsPort defines the string for the flagset
 const ConfigNatsPort = "natsPort"
+// ConfigConnectionstring defines the string for the flagset
 const ConfigConnectionstring = "connectionstring"
 
+// ConfigRetryIntervalDefault defines the default for the nats retryInterval
 const ConfigRetryIntervalDefault = 60
+// ConfigNatsPortDefault defines the default nats port
 const ConfigNatsPortDefault = 4222
+// ConfigConnectionStringDefault defines the default sqlite connection string
 const ConfigConnectionStringDefault = "file::memory:?cache=shared"
 
 // EventOctopusConfig holds the config for the EventOctopusInstance
@@ -49,6 +55,7 @@ type EventOctopusConfig struct {
 	Connectionstring string
 }
 
+// IEventPublisher defines the Publish signature so it can be mocked or implemented for another tech
 type IEventPublisher interface {
 	Publish(subject string, event Event) error
 }
@@ -59,6 +66,7 @@ type EventOctopusClient interface {
 	Subscribe(service, subject string, callbacks map[string]EventHandlerCallback) error
 }
 
+// ChannelHandlers store all the handlers for a specific channel subscription
 type ChannelHandlers struct {
 	subscription natsClient.Subscription
 	handlers     map[string]EventHandlerCallback
@@ -137,6 +145,7 @@ func (octopus *EventOctopus) Subscribe(service, subject string, handlers map[str
 	return nil
 }
 
+// Unsubscribe from a service and subject. If no subjects for a service are left, it closes the stanClient
 func (octopus *EventOctopus) Unsubscribe(service, subject string) error {
 	handlers, ok := octopus.channelHandlers[service][subject]
 	if !ok {
@@ -152,7 +161,7 @@ func (octopus *EventOctopus) Unsubscribe(service, subject string) error {
 	// if this was the only subject for this service, remove the service as well
 	if len(octopus.channelHandlers[service]) == 0 {
 		delete(octopus.channelHandlers, service)
-		octopus.stanClients[service].Close()
+		_ = octopus.stanClients[service].Close()
 		delete(octopus.stanClients, service)
 	}
 
@@ -273,6 +282,7 @@ func (octopus *EventOctopus) Start() error {
 	//return nil
 }
 
+// Client gets an existing or creates a new natsClient
 func (octopus *EventOctopus) Client(clientID string) (natsClient.Conn, error) {
 	if client, ok := octopus.stanClients[clientID]; ok {
 		return client, nil
@@ -303,6 +313,7 @@ func (p EventPublisher) Publish(subject string, event Event) error {
 	return p.conn.Publish(subject, data)
 }
 
+// EventPublisher gets a connection and creates a new EventPublisher
 func (octopus *EventOctopus) EventPublisher(clientId string) (IEventPublisher, error) {
 	conn, err := octopus.Client(clientId)
 	if err != nil {
@@ -385,11 +396,11 @@ func (octopus *EventOctopus) GetEvent(uuid string) (*Event, error) {
 	return event, err
 }
 
-// GetEvent returns single event or not based on given uuid
-func (octopus *EventOctopus) GetEventByExternalId(externalId string) (*Event, error) {
+// GetEventByExternalId returns single event or not based on given uuid
+func (octopus *EventOctopus) GetEventByExternalId(externalID string) (*Event, error) {
 	event := &Event{}
 
-	err := octopus.Db.Debug().Where("external_id = ?", externalId).First(&event).Error
+	err := octopus.Db.Debug().Where("external_id = ?", externalID).First(&event).Error
 
 	if gorm.IsRecordNotFoundError(err) {
 		return nil, nil
@@ -398,6 +409,7 @@ func (octopus *EventOctopus) GetEventByExternalId(externalId string) (*Event, er
 	return event, err
 }
 
+// SaveOrUpdate saves or update the event in the store.
 func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
 	// start transaction
 	tx := octopus.Db.Begin()
