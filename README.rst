@@ -14,6 +14,9 @@ Event service by the Nuts foundation for listening to events from different part
 .. image:: https://codecov.io/gh/nuts-foundation/nuts-event-octopus/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/nuts-foundation/nuts-event-octopus
 
+.. image:: https://api.codacy.com/project/badge/Grade/153b2e8e84ea4e52ac1303d2d9e7606a
+    :target: https://www.codacy.com/app/nuts-foundation/nuts-event-octopus
+
 The event listener is written in Go and should be part of nuts-go as an engine.
 
 Dependencies
@@ -30,11 +33,43 @@ Tests can be run by executing
 
     go test ./...
 
+Generating code
+***************
+
+.. code-block:: shell
+
+    oapi-codegen -generate server -package api docs/_static/nuts-event-store.yaml > api/generated.go
+
+Generating Mock
+***************
+
+When making changes to the client interface run the following command to regenerate the mock:
+
+.. code-block:: shell
+
+    mockgen -destination=mock/mock_client.go -package=mock -source=pkg/events.go
+
+
 Building
 ********
 
 This project is part of https://github.com/nuts-foundation/nuts-go. If you do however would like a binary, just use ``go build``.
 
+The  server API is generated from the nuts-consent-store open-api spec:
+
+.. code-block:: shell
+
+    oapi-codegen -generate server -package api docs/_static/nuts-event-store.yaml > api/generated.go
+
+Binary format migrations
+------------------------
+
+The database migrations are packaged with the binary by using the ``go-bindata`` package.
+
+.. code-block:: shell
+
+    NOT_IN_PROJECT $ go get -u github.com/go-bindata/go-bindata/...
+    nuts-consent-store $ cd migrations && go-bindata -pkg migrations .
 
 README
 ******
@@ -64,15 +99,13 @@ Configuration
 
 The following configuration parameters are available for the event service.
 
-===================================     ====================    ================================================================================
-Key                                     Default                 Description
-===================================     ====================    ================================================================================
-events.eventStartEpoch                  0                       Epoch at which the event stream from the consent bridge should start at
-events.bridgeHost                       127.0.0.1               Host where nuts-consent-bridge is located
-events.queuePort                        5563                    Port for ZMQ tcp connection
-events.restPort                         8080                    Port for REST service to start event stream
-events.retryInterval                    60                      Retry delay in seconds for reconnecting
-===================================     ====================    ================================================================================
+===================================     ======================================  ========================================
+Key                                     Default                                 Description
+===================================     ======================================  ========================================
+events.ConfigConnectionstring           file:not_used?mode=memory&cache=shared  db connection string for event store
+events.natsPort                         4222                                    Port for Nats to bind on
+events.retryInterval                    60                                      Retry delay in seconds for reconnecting
+===================================     ======================================  ========================================
 
 As with all other properties for nuts-go, they can be set through yaml:
 

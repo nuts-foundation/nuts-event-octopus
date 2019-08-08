@@ -21,10 +21,43 @@ Tests can be run by executing
 
     go test ./...
 
+Generating code
+***************
+
+.. code-block:: shell
+
+    oapi-codegen -generate server -package api docs/_static/nuts-event-store.yaml > api/generated.go
+
+Generating Mock
+***************
+
+When making changes to the client interface run the following command to regenerate the mock:
+
+.. code-block:: shell
+
+    mockgen -destination=mock/mock_client.go -package=mock -source=pkg/events.go
+
+
 Building
 ********
 
 This project is part of https://github.com/nuts-foundation/nuts-go. If you do however would like a binary, just use ``go build``.
+
+The  server API is generated from the nuts-consent-store open-api spec:
+
+.. code-block:: shell
+
+    oapi-codegen -generate server -package api docs/_static/nuts-event-store.yaml > api/generated.go
+
+Binary format migrations
+------------------------
+
+The database migrations are packaged with the binary by using the ``go-bindata`` package.
+
+.. code-block:: shell
+
+    NOT_IN_PROJECT $ go get -u github.com/go-bindata/go-bindata/...
+    nuts-consent-store $ cd migrations && go-bindata -pkg migrations .
 
 README
 ******
