@@ -22,6 +22,7 @@ import (
 	"github.com/nuts-foundation/nuts-event-octopus/pkg"
 )
 
+// NewEventOctopusClient returns an EventOctopusInstance
 func NewEventOctopusClient() pkg.EventOctopusClient {
-	return pkg.EventOctopusIntance()
+	return pkg.EventOctopusInstance()
 }

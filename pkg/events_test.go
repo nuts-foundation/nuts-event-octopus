@@ -257,7 +257,7 @@ func stanConnection() natsClient.Conn {
 }
 
 func testEventOctopus() *EventOctopus {
-	return EventOctopusIntance()
+	return EventOctopusInstance()
 }
 
 func TestEventOctopus_Unsubscribe(t *testing.T) {

@@ -24,11 +24,13 @@ import (
 	"github.com/nuts-foundation/nuts-event-octopus/pkg"
 )
 
-type ApiWrapper struct {
+// Wrapper connects the EventOctopus with the API.
+type Wrapper struct {
 	Eo *pkg.EventOctopus
 }
 
-func (w ApiWrapper) List(ctx echo.Context) error {
+// List returns all events from the eventStore
+func (w Wrapper) List(ctx echo.Context) error {
 	events, err := w.Eo.List()
 
 	if err != nil {
@@ -36,13 +38,14 @@ func (w ApiWrapper) List(ctx echo.Context) error {
 	}
 
 	resp := EventListResponse{
-		Events: ConvertList(events),
+		Events: convertList(events),
 	}
 
 	return ctx.JSON(200, resp)
 }
 
-func (w ApiWrapper) GetEvent(ctx echo.Context, uuid string) error {
+// GetEvent returns a specific event from the eventStore by its uuid
+func (w Wrapper) GetEvent(ctx echo.Context, uuid string) error {
 	event, err := w.Eo.GetEvent(uuid)
 
 	if err != nil {
@@ -53,12 +56,13 @@ func (w ApiWrapper) GetEvent(ctx echo.Context, uuid string) error {
 		return ctx.NoContent(404)
 	}
 
-	resp := Convert(*event)
+	resp := convert(*event)
 
 	return ctx.JSON(200, resp)
 }
 
-func (w ApiWrapper) GetEventByExternalId(ctx echo.Context, externalId string) error {
+// GetEventByExternalId returns a specific event by its externalId
+func (w Wrapper) GetEventByExternalId(ctx echo.Context, externalId string) error {
 	event, err := w.Eo.GetEventByExternalId(externalId)
 
 	if err != nil {
@@ -69,7 +73,7 @@ func (w ApiWrapper) GetEventByExternalId(ctx echo.Context, externalId string) er
 		return ctx.NoContent(404)
 	}
 
-	resp := Convert(*event)
+	resp := convert(*event)
 
 	return ctx.JSON(200, resp)
 }

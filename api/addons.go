@@ -22,7 +22,7 @@ import (
 	"github.com/nuts-foundation/nuts-event-octopus/pkg"
 )
 
-func Convert(e pkg.Event) Event {
+func convert(e pkg.Event) Event {
 	return Event{
 		Error:                e.Error,
 		InitiatorLegalEntity: Identifier(e.InitiatorLegalEntity),
@@ -35,11 +35,11 @@ func Convert(e pkg.Event) Event {
 	}
 }
 
-func ConvertList(e *[]pkg.Event) []Event {
+func convertList(e *[]pkg.Event) []Event {
 	events := make([]Event, len(*e))
 
 	for i, el := range *e {
-		events[i] = Convert(el)
+		events[i] = convert(el)
 	}
 
 	return events

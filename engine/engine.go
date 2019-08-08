@@ -28,7 +28,7 @@ import (
 
 // NewEventOctopusEngine creates the engine configuration for nuts-go.
 func NewEventOctopusEngine() *engine.Engine {
-	i := pkg.EventOctopusIntance()
+	i := pkg.EventOctopusInstance()
 
 	return &engine.Engine{
 		Name:      "Events octopus",
@@ -37,7 +37,7 @@ func NewEventOctopusEngine() *engine.Engine {
 		Configure: i.Configure,
 		FlagSet:   flagSet(),
 		Routes: func(router runtime.EchoRouter) {
-			api.RegisterHandlers(router, &api.ApiWrapper{Eo: i})
+			api.RegisterHandlers(router, &api.Wrapper{Eo: i})
 		},
 		Start:    i.Start,
 		Shutdown: i.Shutdown,

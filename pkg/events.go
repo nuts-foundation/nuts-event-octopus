@@ -87,8 +87,8 @@ type EventOctopus struct {
 var instance *EventOctopus
 var oneInstance = &sync.Once{}
 
-// EventOctopusIntance returns the EventOctopus singleton
-func EventOctopusIntance() *EventOctopus {
+// EventOctopusInstance returns the EventOctopus singleton
+func EventOctopusInstance() *EventOctopus {
 	oneInstance.Do(func() {
 		instance = &EventOctopus{
 			Config: EventOctopusConfig{
