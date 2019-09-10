@@ -22,7 +22,7 @@ import (
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/nuts-foundation/nuts-event-octopus/api"
 	"github.com/nuts-foundation/nuts-event-octopus/pkg"
-	engine "github.com/nuts-foundation/nuts-go/pkg"
+	engine "github.com/nuts-foundation/nuts-go-core"
 	"github.com/spf13/pflag"
 )
 

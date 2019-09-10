@@ -20,7 +20,7 @@ package cmd
 
 import (
 	"github.com/nuts-foundation/nuts-event-octopus/engine"
-	cfg "github.com/nuts-foundation/nuts-go/pkg"
+	cfg "github.com/nuts-foundation/nuts-go-core"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"os"
