@@ -18,7 +18,7 @@ Event model
         name: string                   # event name, see table
         retryCount: int                # 0 to X
         externalId: string             # ID calculated by crypto using BSN and private key of custodian
-        consentId: string              # V4 UUID assigned by Corda to a record
+        consentId: string              # V4 UUID assigned by Corda to a record, either a ConsentBranch or ConsentState
         initiatorLegalEntity: string   # urn style identifier of the initiating legalEntity, used to select the party who's finalizing the request
         transactionId: string          # V4 UUID identifying a possible Corda transaction that was started by this event chain
         payload: string                # Base64 encoded NewConsentRequestState JSON as accepted by consent-bridge (:ref:`nuts-consent-bridge-api`)
