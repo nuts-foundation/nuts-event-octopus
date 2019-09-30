@@ -28,7 +28,7 @@ import (
 func TestEvent_Json(t *testing.T) {
 	err := "error"
 	e := Event{
-		Error:                &err,
+		Error: &err,
 	}
 
 	jsonBytes, _ := json.Marshal(e)

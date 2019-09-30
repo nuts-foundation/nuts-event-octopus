@@ -23,6 +23,7 @@ import (
 	"fmt"
 	natsClient "github.com/nats-io/stan.go"
 	uuid "github.com/satori/go.uuid"
+	"sync"
 	"testing"
 	"time"
 )
@@ -136,7 +137,8 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 		called := false
 
 		i := testEventOctopus()
-		_ = i.Start()
+		i.Configure()
+		i.Start()
 		defer i.Shutdown()
 
 		_ = i.Subscribe("event-logic",
@@ -160,7 +162,8 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 
 	t.Run("adding handlers for the same service and subject should merge the handlers", func(t *testing.T) {
 		i := testEventOctopus()
-		_ = i.Start()
+		i.Configure()
+		i.Start()
 		defer i.Shutdown()
 
 		subject := "subject"
@@ -294,4 +297,83 @@ func TestEventOctopus_Unsubscribe(t *testing.T) {
 	if len(i.stanClients) != 0 {
 		t.Error("expected all connections to be closed")
 	}
+}
+
+func TestEventOctopus_recover(t *testing.T) {
+	t.Run("events not completed are published", func(t *testing.T) {
+		i := testEventOctopus()
+		i.Configure()
+		i.Start()
+		defer i.Shutdown()
+
+		sc := stanConnection()
+		defer sc.Close()
+
+		event := &Event{}
+
+		// test synchronization
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+
+		// subscribe to Nats
+		sc.Subscribe(ChannelConsentRequest, func(msg *natsClient.Msg) {
+			// Unmarshal JSON that represents the Order data
+			json.Unmarshal(msg.Data, &event)
+			wg.Done()
+		})
+
+		// store new event
+		i.SaveOrUpdate(Event{
+			ExternalId: "2",
+			Name:       EventConsentDistributed,
+			Uuid:       uuid.NewV4().String(),
+		})
+
+		// start recover
+		i.recover()
+
+		// wait for event
+		wg.Wait()
+
+		if event.ExternalId != "2" {
+			t.Error("Expected to receive event with externalId 2")
+		}
+	})
+
+}
+
+func TestEventOctopus_purgeCompleted(t *testing.T) {
+	t.Run("purgeCompleted removes events with name completed", func(t *testing.T) {
+		i := testEventOctopus()
+		i.Configure()
+		i.Start()
+		defer i.Shutdown()
+
+		// store new events
+		i.SaveOrUpdate(Event{
+			ExternalId: "1",
+			Name:       EventCompleted,
+			Uuid:       uuid.NewV4().String(),
+		})
+
+		i.SaveOrUpdate(Event{
+			ExternalId: "2",
+			Name:       EventConsentDistributed,
+			Uuid:       uuid.NewV4().String(),
+		})
+
+		i.purgeCompleted()
+
+		e, _ := i.GetEventByExternalId("1")
+
+		if e != nil {
+			t.Error("Expected event with externalId 1 to be deleted")
+		}
+
+		e2, _ := i.GetEventByExternalId("2")
+
+		if e2 == nil {
+			t.Error("Expected event with externalId 2 not to be deleted")
+		}
+	})
 }

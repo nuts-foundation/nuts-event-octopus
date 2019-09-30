@@ -22,19 +22,19 @@ import "fmt"
 
 // Event is the type used for Gorm
 type Event struct {
-	ConsentId            string `json:"consentId"`
-	TransactionId        string `json:"transactionId"`
-	InitiatorLegalEntity string `gorm:"not null" json:"initiatorLegalEntity"`
+	ConsentId            string  `json:"consentId"`
+	TransactionId        string  `json:"transactionId"`
+	InitiatorLegalEntity string  `gorm:"not null" json:"initiatorLegalEntity"`
 	Error                *string `json:"error"`
-	ExternalId           string `gorm:"not null" json:"externalId"`
-	Payload              string `gorm:"not null" json:"payload"`
-	RetryCount           int32  `json:"retryCount"`
-	Name                 string `gorm:"not null" json:"name"`
-	Uuid                 string `gorm:"PRIMARY_KEY" json:"uuid"`
+	ExternalId           string  `gorm:"not null" json:"externalId"`
+	Payload              string  `gorm:"not null" json:"payload"`
+	RetryCount           int32   `json:"retryCount"`
+	Name                 string  `gorm:"not null" json:"name"`
+	Uuid                 string  `gorm:"PRIMARY_KEY" json:"uuid"`
 }
 
 func (e Event) String() string {
-	return fmt.Sprintf("Name: %v, uuid: %v, externalId: %v, retryCount: %v, error: %v", e.Name, e.Uuid, e.ExternalId, e.RetryCount, e.Error )
+	return fmt.Sprintf("Name: %v, uuid: %v, externalId: %v, retryCount: %v, error: %v", e.Name, e.Uuid, e.ExternalId, e.RetryCount, e.Error)
 }
 
 // EventHandlerCallback defines the signature of an event handler method.
@@ -42,35 +42,51 @@ type EventHandlerCallback func(event *Event)
 
 // EventConsentRequestConstructed is the event emitted directly after consent request creation to start the flow
 const EventConsentRequestConstructed = "consentRequest constructed"
+
 // EventConsentRequestInFlight is used to indicate the node is waiting for corda to come back with more information
 const EventConsentRequestInFlight = "consentRequest in flight"
+
 // EventConsentRequestFlowErrored indicates something went wrong 😔
 const EventConsentRequestFlowErrored = "consentRequest flow errored"
+
 // EventConsentRequestFlowSuccess
 const EventConsentRequestFlowSuccess = "consentRequest flow success"
+
 // EventDistributedConsentRequestReceived is broadcasted by the consent-bridge when a request has been received
 const EventDistributedConsentRequestReceived = "distributed ConsentRequest received"
+
 // EventAllSignaturesPresent is emitted when all nodes have signed the consentRecord
 const EventAllSignaturesPresent = "all signatures present"
+
 // EventInFinalFlight indicates the consentRequest is in flight for final storage
 const EventInFinalFlight = "consentRequest in flight for final state"
+
 // EventConsentRequestValid indicates the consentRequest is technically a valid request
 const EventConsentRequestValid = "consentRequest valid"
+
 // EventConsentRequestAcked indicates the consentRequest has approved by the vendor system
 const EventConsentRequestAcked = "consentRequest acked"
+
 // EventConsentRequestNacked indicates the consentRequest has been denied by the vendor system
 const EventConsentRequestNacked = "consentRequest nacked"
+
 // EventAttachmentSigned indicates one of the signatures has been signed
 const EventAttachmentSigned = "attachment signed"
+
 // EventConsentDistributed indicates the consent request has been distributed among all nodes
 const EventConsentDistributed = "consent distributed"
+
 // EventCompleted indicates the flow has been completed 🎉
 const EventCompleted = "completed"
+
 // EventErrored indicates the flow has errored
 const EventErrored = "error"
+
 // ChannelConsentRequest is the default channel to broadcast events
 const ChannelConsentRequest = "consentRequest"
+
 // ChannelConsentRetry can be used to broadcast events which are errored and should be retried
 const ChannelConsentRetry = "consentRequestRetry"
+
 // ChannelConsentErrored can be used to broadcast events which are errored and can not be retried
 const ChannelConsentErrored = "consentRequestErrored"
