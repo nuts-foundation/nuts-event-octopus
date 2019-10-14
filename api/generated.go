@@ -99,4 +99,3 @@ func RegisterHandlers(router runtime.EchoRouter, si ServerInterface) {
 	router.GET("/events/:uuid", wrapper.GetEvent)
 
 }
-
