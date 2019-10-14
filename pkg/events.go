@@ -36,15 +36,19 @@ import (
 
 // ConfigRetryInterval defines the string for the flagset
 const ConfigRetryInterval = "retryInterval"
+
 // ConfigNatsPort defines the string for the flagset
 const ConfigNatsPort = "natsPort"
+
 // ConfigConnectionstring defines the string for the flagset
 const ConfigConnectionstring = "connectionstring"
 
 // ConfigRetryIntervalDefault defines the default for the nats retryInterval
 const ConfigRetryIntervalDefault = 60
+
 // ConfigNatsPortDefault defines the default nats port
 const ConfigNatsPortDefault = 4222
+
 // ConfigConnectionStringDefault defines the default sqlite connection string
 const ConfigConnectionStringDefault = "file::memory:?cache=shared"
 
@@ -111,7 +115,7 @@ func (octopus *EventOctopus) Subscribe(service, subject string, handlers map[str
 		channelHandlers := ChannelHandlers{
 			handlers: handlers,
 		}
-		stanClient, err := octopus.Client(service);
+		stanClient, err := octopus.Client(service)
 		if err != nil {
 			return err
 		}
