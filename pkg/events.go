@@ -140,7 +140,7 @@ func (octopus *EventOctopus) Subscribe(service, subject string, handlers map[str
 			// Unmarshal JSON that represents the Order data
 			err := json.Unmarshal(msg.Data, &event)
 			if err != nil {
-				logrus.Errorf("Error unmarshalling event: %v", err)
+				logrus.Errorf("Error unmarshalling event: %w", err)
 				return
 			}
 			handler := channelHandlers.handlers[event.Name]
@@ -194,28 +194,36 @@ func (octopus *EventOctopus) Configure() error {
 	)
 
 	octopus.configOnce.Do(func() {
-		//if octopus.Config.Mode == "server" {
-		octopus.sqlDb, err = sql.Open("sqlite3", octopus.Config.Connectionstring)
-
-		if err != nil {
-			return
-		}
-
-		// 1 ping
-		err = octopus.sqlDb.Ping()
-		if err != nil {
-			return
-		}
-
-		// migrate
-		err = octopus.RunMigrations(octopus.sqlDb)
-		if err != nil {
-			return
-		}
-		//}
+		err = octopus.configure()
 	})
 
 	return err
+}
+
+func (octopus *EventOctopus) configure() error {
+	var (
+		err error
+	)
+
+	octopus.sqlDb, err = sql.Open("sqlite3", octopus.Config.Connectionstring)
+
+	if err != nil {
+		return err
+	}
+
+	// 1 ping
+	err = octopus.sqlDb.Ping()
+	if err != nil {
+		return err
+	}
+
+	// migrate
+	err = octopus.RunMigrations(octopus.sqlDb)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // RunMigrations runs all new migrations in order
@@ -269,7 +277,7 @@ func (octopus *EventOctopus) nats() error {
 
 	octopus.stanServer, err = natsServer.RunServerWithOpts(opts, &sopts)
 	if err != nil {
-		return fmt.Errorf("Unable to start Nats-streaming server: %v", err)
+		return fmt.Errorf("Unable to start Nats-streaming server: %w", err)
 	}
 	octopus.stanServer.ClusterID()
 
@@ -369,7 +377,7 @@ func (octopus *EventOctopus) eventStoreClient() error {
 		// Unmarshal JSON that represents the Order data
 		err := json.Unmarshal(msg.Data, &event)
 		if err != nil {
-			logrus.Errorf("Error unmarshalling event: %v", err)
+			logrus.Errorf("Error unmarshalling event: %w", err)
 			return
 		}
 		// Handle the message
@@ -476,11 +484,7 @@ func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
 // for all items in the map that do not have the event.Name == EventCompleted, a new event will be published
 // unless the max retry count has been reached.
 func (octopus *EventOctopus) recover() error {
-	var events []Event
-
-	if err := octopus.Db.Debug().Find(&events).Error; err != nil {
-		return err
-	}
+	events, err := octopus.allEvents()
 
 	// filter out all non-completed events, in-place
 	var added int
@@ -513,6 +517,12 @@ func (octopus *EventOctopus) recover() error {
 	}
 
 	return nil
+}
+
+func (octopus *EventOctopus) allEvents() (events []Event, err error) {
+	err = octopus.Db.Debug().Find(&events).Error
+
+	return events, err
 }
 
 // purgeCompleted removes all events from the DB with name == Completed

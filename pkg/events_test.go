@@ -23,6 +23,7 @@ import (
 	"fmt"
 	natsClient "github.com/nats-io/stan.go"
 	uuid "github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
 	"time"
@@ -34,7 +35,7 @@ func TestEventOctopus_Configure(t *testing.T) {
 
 func TestEventOctopus_Start(t *testing.T) {
 	eo := testEventOctopus()
-	_ = eo.Configure()
+	_ = eo.configure()
 	defer eo.Shutdown()
 
 	t.Run("feedbackChannel receives nil value on default config", func(t *testing.T) {
@@ -47,7 +48,7 @@ func TestEventOctopus_Start(t *testing.T) {
 func TestEventOctopus_Shutdown(t *testing.T) {
 	t.Run("Terminating zmqCtx does not give errors for default values", func(t *testing.T) {
 		eo := testEventOctopus()
-		_ = eo.Configure()
+		_ = eo.configure()
 		_ = eo.Shutdown()
 
 		if err := eo.Shutdown(); err != nil {
@@ -69,7 +70,7 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 	i := testEventOctopus()
 	defer i.Shutdown()
 	i.Config.Connectionstring = "file::memory:?cache=shared"
-	i.Configure()
+	i.configure()
 	if err := i.Start(); err != nil {
 		fmt.Printf("%v\n", err)
 	}
@@ -132,37 +133,57 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 	})
 }
 
+func TestEventOctopus_EventPublisher(t *testing.T) {
+	t.Run("Returns error when not initialized", func(t *testing.T) {
+		i := testEventOctopus()
+		_, err := i.EventPublisher("ID")
+
+		assert.NotNil(t, err)
+	})
+}
+
 func TestEventOctopus_Subscribe(t *testing.T) {
 	t.Run("subscribe to event with handler", func(t *testing.T) {
 		called := false
 
 		i := testEventOctopus()
-		i.Configure()
+		i.configure()
 		i.Start()
 		defer i.Shutdown()
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
 
 		_ = i.Subscribe("event-logic",
 			"EventRequestEvents",
 			map[string]EventHandlerCallback{
 				event.Name: func(event *Event) {
-					called = true
-					t.Log("callback received")
+					wg.Done()
 				},
 			})
 
 		publisher, _ := i.EventPublisher("event-octopus-test")
 
+		notify := make(chan bool)
+
+		go func() {
+			wg.Wait()
+			notify <- true
+		}()
+
 		_ = publisher.Publish("EventRequestEvents", event)
 
-		time.Sleep(500 * time.Millisecond)
-		if !called {
-			t.Error("callback should have been called")
+		select {
+			case <-notify:called = true
+			case <-time.After(10 * time.Millisecond):
 		}
+
+		assert.True(t, called)
 	})
 
 	t.Run("adding handlers for the same service and subject should merge the handlers", func(t *testing.T) {
 		i := testEventOctopus()
-		i.Configure()
+		i.configure()
 		i.Start()
 		defer i.Shutdown()
 
@@ -260,49 +281,81 @@ func stanConnection() natsClient.Conn {
 }
 
 func testEventOctopus() *EventOctopus {
-	return EventOctopusInstance()
+	return &EventOctopus{
+		Name: Name,
+		Config: EventOctopusConfig{
+			RetryInterval:    ConfigRetryIntervalDefault,
+			NatsPort:         ConfigNatsPortDefault,
+			Connectionstring: ConfigConnectionStringDefault,
+		},
+		channelHandlers: make(map[string]map[string]ChannelHandlers),
+		stanClients:     make(map[string]natsClient.Conn),
+	}
 }
 
 func TestEventOctopus_Unsubscribe(t *testing.T) {
 	i := testEventOctopus()
 	i.nats() // use nats() instead of Start() so there will not be a service for the event-store
 	defer i.Shutdown()
-	i.Subscribe("service", "subject", map[string]EventHandlerCallback{"foo": func(event *Event) {}, "bar": func(event *Event) {}})
-	i.Subscribe("service", "other-subject", map[string]EventHandlerCallback{"foo": func(event *Event) {}, "bar": func(event *Event) {}})
 
-	if len(i.channelHandlers["service"]) != 2 {
-		t.Errorf("expected 2 channelHandlers, got %v", len(i.channelHandlers["service"]))
+	t.Run("Subscribe and unsubscribe count", func(t *testing.T) {
+		i.Subscribe("service", "subject", map[string]EventHandlerCallback{"foo": func(event *Event) {}, "bar": func(event *Event) {}})
+		i.Subscribe("service", "other-subject", map[string]EventHandlerCallback{"foo": func(event *Event) {}, "bar": func(event *Event) {}})
+
+		assert.Equal(t, 2, len(i.channelHandlers["service"]))
+		assert.Equal(t, 1, len(i.stanClients))
+
+		i.Unsubscribe("service", "subject")
+
+		assert.Equal(t, 1, len(i.channelHandlers["service"]))
+		assert.Equal(t, 1, len(i.stanClients))
+
+		i.Unsubscribe("service", "other-subject")
+
+		assert.Equal(t, 0, len(i.channelHandlers["service"]))
+		assert.Equal(t, 0, len(i.stanClients))
+	})
+
+	t.Run("Unknown subscription returns error", func(t *testing.T) {
+		err := i.Unsubscribe("unknown", "unknown")
+
+		assert.NotNil(t, err)
+	})
+
+}
+
+func TestEventOctopus_GetEvent(t *testing.T) {
+	i := testEventOctopus()
+	i.configure()
+	i.Start()
+	defer i.Shutdown()
+
+	// store new event
+	e := Event{
+		ExternalID: "2",
+		Name:       EventConsentDistributed,
+		UUID:       uuid.NewV4().String(),
 	}
+	i.SaveOrUpdate(e)
 
-	if len(i.stanClients) != 1 {
-		t.Error("expected 1 connections")
-	}
+	t.Run("event found", func(t *testing.T) {
+		ep, err := i.GetEvent(e.UUID)
+		if assert.Nil(t, err) {
+			assert.Equal(t, EventConsentDistributed, ep.Name)
+		}
+	})
 
-	i.Unsubscribe("service", "subject")
-
-	if len(i.channelHandlers["service"]) != 1 {
-		t.Errorf("expected 1 channelHandlers, got %v", len(i.channelHandlers["service"]))
-	}
-
-	if len(i.stanClients) != 1 {
-		t.Error("expected 1 connections")
-	}
-
-	i.Unsubscribe("service", "other-subject")
-
-	if len(i.channelHandlers["service"]) != 0 {
-		t.Errorf("expected 0 channelHandlers, got %v", len(i.channelHandlers["service"]))
-	}
-
-	if len(i.stanClients) != 0 {
-		t.Error("expected all connections to be closed")
-	}
+	t.Run("event not found", func(t *testing.T) {
+		ep, err := i.GetEvent(uuid.NewV4().String())
+		assert.Nil(t, err)
+		assert.Nil(t, ep)
+	})
 }
 
 func TestEventOctopus_recover(t *testing.T) {
 	t.Run("events not completed are published", func(t *testing.T) {
 		i := testEventOctopus()
-		i.Configure()
+		i.configure()
 		i.Start()
 		defer i.Shutdown()
 
@@ -311,22 +364,23 @@ func TestEventOctopus_recover(t *testing.T) {
 
 		event := &Event{}
 
+		// store new event
+		i.SaveOrUpdate(Event{
+			ExternalID: "2",
+			Name:       EventConsentDistributed,
+			UUID:       uuid.NewV4().String(),
+		})
+
 		// test synchronization
 		wg := sync.WaitGroup{}
-		wg.Add(1)
+		events, _ := i.allEvents()
+		wg.Add(len(events))
 
 		// subscribe to Nats
 		sc.Subscribe(ChannelConsentRequest, func(msg *natsClient.Msg) {
 			// Unmarshal JSON that represents the Order data
 			json.Unmarshal(msg.Data, &event)
 			wg.Done()
-		})
-
-		// store new event
-		i.SaveOrUpdate(Event{
-			ExternalID: "2",
-			Name:       EventConsentDistributed,
-			UUID:       uuid.NewV4().String(),
 		})
 
 		// start recover
@@ -345,7 +399,7 @@ func TestEventOctopus_recover(t *testing.T) {
 func TestEventOctopus_purgeCompleted(t *testing.T) {
 	t.Run("purgeCompleted removes events with name completed", func(t *testing.T) {
 		i := testEventOctopus()
-		i.Configure()
+		i.configure()
 		i.Start()
 		defer i.Shutdown()
 
