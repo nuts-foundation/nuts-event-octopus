@@ -22,19 +22,19 @@ import "fmt"
 
 // Event is the type used for Gorm
 type Event struct {
-	ConsentId            string  `json:"consentId"`
-	TransactionId        string  `json:"transactionId"`
+	ConsentID            string  `json:"consentId"`
+	TransactionID        string  `json:"transactionId"`
 	InitiatorLegalEntity string  `gorm:"not null" json:"initiatorLegalEntity"`
 	Error                *string `json:"error"`
-	ExternalId           string  `gorm:"not null" json:"externalId"`
+	ExternalID           string  `gorm:"not null" json:"externalId"`
 	Payload              string  `gorm:"not null" json:"payload"`
 	RetryCount           int32   `json:"retryCount"`
 	Name                 string  `gorm:"not null" json:"name"`
-	Uuid                 string  `gorm:"PRIMARY_KEY" json:"uuid"`
+	UUID                 string  `gorm:"PRIMARY_KEY" json:"uuid"`
 }
 
 func (e Event) String() string {
-	return fmt.Sprintf("Name: %v, uuid: %v, externalId: %v, retryCount: %v, error: %v", e.Name, e.Uuid, e.ExternalId, e.RetryCount, e.Error)
+	return fmt.Sprintf("Name: %v, uuid: %v, externalId: %v, retryCount: %v, error: %v", e.Name, e.UUID, e.ExternalID, e.RetryCount, e.Error)
 }
 
 // EventHandlerCallback defines the signature of an event handler method.
@@ -49,7 +49,7 @@ const EventConsentRequestInFlight = "consentRequest in flight"
 // EventConsentRequestFlowErrored indicates something went wrong 😔
 const EventConsentRequestFlowErrored = "consentRequest flow errored"
 
-// EventConsentRequestFlowSuccess
+// EventConsentRequestFlowSuccess is used when the Corda flow has been executed successfully
 const EventConsentRequestFlowSuccess = "consentRequest flow success"
 
 // EventDistributedConsentRequestReceived is broadcasted by the consent-bridge when a request has been received

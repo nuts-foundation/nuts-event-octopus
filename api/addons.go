@@ -26,12 +26,12 @@ func convert(e pkg.Event) Event {
 	return Event{
 		Error:                e.Error,
 		InitiatorLegalEntity: Identifier(e.InitiatorLegalEntity),
-		ConsentId:            &e.ConsentId,
-		ExternalId:           e.ExternalId,
+		ConsentId:            &e.ConsentID,
+		ExternalId:           e.ExternalID,
 		Name:                 e.Name,
 		Payload:              e.Payload,
 		RetryCount:           e.RetryCount,
-		Uuid:                 e.Uuid,
+		Uuid:                 e.UUID,
 	}
 }
 

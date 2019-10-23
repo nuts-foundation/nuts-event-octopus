@@ -55,7 +55,7 @@ func (w *ServerInterfaceWrapper) List(ctx echo.Context) error {
 	return err
 }
 
-// GetEventByExternalId converts echo context to params.
+// GetEventByExternalID converts echo context to params.
 func (w *ServerInterfaceWrapper) GetEventByExternalId(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "external_id" -------------

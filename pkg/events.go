@@ -31,6 +31,7 @@ import (
 	natsClient "github.com/nats-io/stan.go"
 	"github.com/nuts-foundation/nuts-event-octopus/migrations"
 	"github.com/sirupsen/logrus"
+	"strings"
 	"sync"
 )
 
@@ -52,11 +53,22 @@ const ConfigNatsPortDefault = 4222
 // ConfigConnectionStringDefault defines the default sqlite connection string
 const ConfigConnectionStringDefault = "file::memory:?cache=shared"
 
+// ConfigAutoRecover is the config name for republishing unfinished events at startup
+const ConfigAutoRecover = "autoRecover"
+
+// ConfigPurgeCompleted is the config name for enabling purging completed events
+const ConfigPurgeCompleted = "purgeCompleted"
+
+// Name is the name of this module
+const Name = "Events octopus"
+
 // EventOctopusConfig holds the config for the EventOctopusInstance
 type EventOctopusConfig struct {
 	RetryInterval    int
 	NatsPort         int
 	Connectionstring string
+	AutoRecover      bool
+	PurgeCompleted   bool
 }
 
 // IEventPublisher defines the Publish signature so it can be mocked or implemented for another tech
@@ -66,7 +78,7 @@ type IEventPublisher interface {
 
 // EventOctopusClient is the client interface for publishing events
 type EventOctopusClient interface {
-	EventPublisher(clientId string) (IEventPublisher, error)
+	EventPublisher(clientID string) (IEventPublisher, error)
 	Subscribe(service, subject string, callbacks map[string]EventHandlerCallback) error
 }
 
@@ -78,11 +90,12 @@ type ChannelHandlers struct {
 
 // EventOctopus is the default implementation for EventOctopusInstance
 type EventOctopus struct {
+	Name       string
 	Config     EventOctopusConfig
 	configOnce sync.Once
-	configDone bool
 	stanServer *natsServer.StanServer
 	Db         *gorm.DB
+	sqlDb      *sql.DB
 	// Clients per service
 	stanClients     map[string]natsClient.Conn
 	channelHandlers map[string]map[string]ChannelHandlers
@@ -95,6 +108,7 @@ var oneInstance = &sync.Once{}
 func EventOctopusInstance() *EventOctopus {
 	oneInstance.Do(func() {
 		instance = &EventOctopus{
+			Name: Name,
 			Config: EventOctopusConfig{
 				RetryInterval:    ConfigRetryIntervalDefault,
 				NatsPort:         ConfigNatsPortDefault,
@@ -125,7 +139,7 @@ func (octopus *EventOctopus) Subscribe(service, subject string, handlers map[str
 			// Unmarshal JSON that represents the Order data
 			err := json.Unmarshal(msg.Data, &event)
 			if err != nil {
-				logrus.Errorf("Error unmarshalling event: %v", err)
+				logrus.Errorf("Error unmarshalling event: %w", err)
 				return
 			}
 			handler := channelHandlers.handlers[event.Name]
@@ -176,32 +190,39 @@ func (octopus *EventOctopus) Unsubscribe(service, subject string) error {
 func (octopus *EventOctopus) Configure() error {
 	var (
 		err error
-		db  *sql.DB
 	)
 
 	octopus.configOnce.Do(func() {
-		//if octopus.Config.Mode == "server" {
-		db, err = sql.Open("sqlite3", octopus.Config.Connectionstring)
-		defer db.Close()
-		if err != nil {
-			return
-		}
-
-		// 1 ping
-		err = db.Ping()
-		if err != nil {
-			return
-		}
-
-		// migrate
-		err = octopus.RunMigrations(db)
-		if err != nil {
-			return
-		}
-		//}
+		err = octopus.configure()
 	})
 
 	return err
+}
+
+func (octopus *EventOctopus) configure() error {
+	var (
+		err error
+	)
+
+	octopus.sqlDb, err = sql.Open("sqlite3", octopus.Config.Connectionstring)
+
+	if err != nil {
+		return err
+	}
+
+	// 1 ping
+	err = octopus.sqlDb.Ping()
+	if err != nil {
+		return err
+	}
+
+	// migrate
+	err = octopus.RunMigrations(octopus.sqlDb)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // RunMigrations runs all new migrations in order
@@ -255,7 +276,7 @@ func (octopus *EventOctopus) nats() error {
 
 	octopus.stanServer, err = natsServer.RunServerWithOpts(opts, &sopts)
 	if err != nil {
-		return fmt.Errorf("Unable to start Nats-streaming server: %v", err)
+		return fmt.Errorf("Unable to start Nats-streaming server: %w", err)
 	}
 	octopus.stanServer.ClusterID()
 
@@ -269,7 +290,7 @@ func (octopus *EventOctopus) Start() error {
 	var err error
 
 	// gorm db connection
-	if octopus.Db, err = gorm.Open("sqlite3", octopus.Config.Connectionstring); err != nil {
+	if octopus.Db, err = gorm.Open("sqlite3", octopus.sqlDb); err != nil {
 		return err
 	}
 
@@ -282,8 +303,23 @@ func (octopus *EventOctopus) Start() error {
 	}
 
 	// event store client
-	return octopus.eventStoreClient()
-	//return nil
+	if err = octopus.eventStoreClient(); err != nil {
+		return err
+	}
+
+	if octopus.Config.AutoRecover {
+		if err := octopus.recover(); err != nil {
+			return err
+		}
+	}
+
+	if octopus.Config.PurgeCompleted {
+		if err := octopus.purgeCompleted(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Client gets an existing or creates a new natsClient
@@ -318,8 +354,8 @@ func (p EventPublisher) Publish(subject string, event Event) error {
 }
 
 // EventPublisher gets a connection and creates a new EventPublisher
-func (octopus *EventOctopus) EventPublisher(clientId string) (IEventPublisher, error) {
-	conn, err := octopus.Client(clientId)
+func (octopus *EventOctopus) EventPublisher(clientID string) (IEventPublisher, error) {
+	conn, err := octopus.Client(clientID)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +376,7 @@ func (octopus *EventOctopus) eventStoreClient() error {
 		// Unmarshal JSON that represents the Order data
 		err := json.Unmarshal(msg.Data, &event)
 		if err != nil {
-			logrus.Errorf("Error unmarshalling event: %v", err)
+			logrus.Errorf("Error unmarshalling event: %w", err)
 			return
 		}
 		// Handle the message
@@ -400,8 +436,8 @@ func (octopus *EventOctopus) GetEvent(uuid string) (*Event, error) {
 	return event, err
 }
 
-// GetEventByExternalId returns single event or not based on given uuid
-func (octopus *EventOctopus) GetEventByExternalId(externalID string) (*Event, error) {
+// GetEventByExternalID returns single event or not based on given uuid
+func (octopus *EventOctopus) GetEventByExternalID(externalID string) (*Event, error) {
 	event := &Event{}
 
 	err := octopus.Db.Debug().Where("external_id = ?", externalID).First(&event).Error
@@ -431,8 +467,8 @@ func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
 	// actual query
 	target := &Event{}
 	// When using real DB:
-	// err := eo.Db.Set("gorm:query_option", "FOR UPDATE").Where("uuid = ?", event.Uuid).First(&target).Error
-	err := octopus.Db.Debug().Where("uuid = ?", event.Uuid).First(&target).Error
+	// err := eo.Db.Set("gorm:query_option", "FOR UPDATE").Where("uuid = ?", event.UUID).First(&target).Error
+	err := octopus.Db.Debug().Where("uuid = ?", event.UUID).First(&target).Error
 
 	if err == nil || gorm.IsRecordNotFoundError(err) {
 		octopus.Db.Debug().Save(&event)
@@ -441,4 +477,60 @@ func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
 		return err
 	}
 	return tx.Commit().Error
+}
+
+// recover creates a map from event.UUID to event.Name
+// for all items in the map that do not have the event.Name == EventCompleted, a new event will be published
+// unless the max retry count has been reached.
+func (octopus *EventOctopus) recover() error {
+	events, err := octopus.allEvents()
+
+	// filter out all non-completed events, in-place
+	var added int
+	for i, e := range events {
+		if e.Name != EventCompleted {
+			events[added] = events[i]
+			added++
+		}
+	}
+
+	events = events[0:added]
+
+	// Nats client ID's can not contain whitespace
+	publisher, err := octopus.EventPublisher(strings.Replace(octopus.Name, " ", "_", -1))
+	if err != nil {
+		return err
+	}
+
+	// re publish
+	for _, e := range events {
+		err := publisher.Publish(ChannelConsentRequest, e)
+		if err != nil {
+			logrus.Error("error during publishing of recovery events, stopping")
+			return err
+		}
+	}
+
+	if len(events) > 0 {
+		logrus.Infof("Re-published %d events", len(events))
+	}
+
+	return nil
+}
+
+func (octopus *EventOctopus) allEvents() (events []Event, err error) {
+	err = octopus.Db.Debug().Find(&events).Error
+
+	return events, err
+}
+
+// purgeCompleted removes all events from the DB with name == Completed
+func (octopus *EventOctopus) purgeCompleted() error {
+	if err := octopus.Db.Debug().Delete(Event{}, "name = ?", EventCompleted).Error; err != nil {
+		return err
+	}
+
+	logrus.Infof("Event DB purged from completed events")
+
+	return nil
 }

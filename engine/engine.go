@@ -31,7 +31,7 @@ func NewEventOctopusEngine() *engine.Engine {
 	i := pkg.EventOctopusInstance()
 
 	return &engine.Engine{
-		Name:      "Events octopus",
+		Name:      i.Name,
 		Config:    &i.Config,
 		ConfigKey: "events",
 		Configure: i.Configure,
@@ -50,6 +50,8 @@ func flagSet() *pflag.FlagSet {
 	flags.Int(pkg.ConfigRetryInterval, pkg.ConfigRetryIntervalDefault, "Retry delay in seconds for reconnecting")
 	flags.Int(pkg.ConfigNatsPort, pkg.ConfigNatsPortDefault, "Port for Nats to bind on")
 	flags.String(pkg.ConfigConnectionstring, pkg.ConfigConnectionStringDefault, "db connection string for event store")
+	flags.Bool(pkg.ConfigAutoRecover, true, "Republish unfinished events at startup")
+	flags.Bool(pkg.ConfigPurgeCompleted, true, "Purge completed events at startup")
 
 	return flags
 }

@@ -13,6 +13,8 @@ Key                                     Default                                 
 events.ConfigConnectionstring           file::memory:?cache=shared              db connection string for event store
 events.natsPort                         4222                                    Port for Nats to bind on
 events.retryInterval                    60                                      Retry delay in seconds for reconnecting
+events.autoRecover                      true                                    Republish unfinished events at startup
+events.purgeCompleted                   true                                    Purge completed events at startup
 ===================================     ======================================  ========================================
 
 As with all other properties for nuts-go, they can be set through yaml:
