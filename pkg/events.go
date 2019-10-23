@@ -93,7 +93,6 @@ type EventOctopus struct {
 	Name       string
 	Config     EventOctopusConfig
 	configOnce sync.Once
-	configDone bool
 	stanServer *natsServer.StanServer
 	Db         *gorm.DB
 	sqlDb      *sql.DB

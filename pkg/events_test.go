@@ -30,7 +30,17 @@ import (
 )
 
 func TestEventOctopus_Configure(t *testing.T) {
+	t.Run("Configure runs only once", func(t *testing.T) {
+		i := testEventOctopus()
+		i.Configure()
+		var ranTwice bool
 
+		i.configOnce.Do(func() {
+			ranTwice = true
+		})
+
+		assert.False(t, ranTwice)
+	})
 }
 
 func TestEventOctopus_Start(t *testing.T) {
