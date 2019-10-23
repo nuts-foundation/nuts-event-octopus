@@ -61,7 +61,7 @@ func (w Wrapper) GetEvent(ctx echo.Context, uuid string) error {
 	return ctx.JSON(200, resp)
 }
 
-// GetEventByExternalID returns a specific event by its externalId
+// GetEventByExternalId returns a specific event by its externalId
 func (w Wrapper) GetEventByExternalId(ctx echo.Context, externalId string) error {
 	event, err := w.Eo.GetEventByExternalID(externalId)
 
