@@ -59,6 +59,7 @@ const ConfigAutoRecover = "autoRecover"
 // ConfigPurgeCompleted is the config name for enabling purging completed events
 const ConfigPurgeCompleted = "purgeCompleted"
 
+// Name is the name of this module
 const Name = "Events octopus"
 
 // EventOctopusConfig holds the config for the EventOctopusInstance
@@ -77,7 +78,7 @@ type IEventPublisher interface {
 
 // EventOctopusClient is the client interface for publishing events
 type EventOctopusClient interface {
-	EventPublisher(clientId string) (IEventPublisher, error)
+	EventPublisher(clientID string) (IEventPublisher, error)
 	Subscribe(service, subject string, callbacks map[string]EventHandlerCallback) error
 }
 
@@ -346,8 +347,8 @@ func (p EventPublisher) Publish(subject string, event Event) error {
 }
 
 // EventPublisher gets a connection and creates a new EventPublisher
-func (octopus *EventOctopus) EventPublisher(clientId string) (IEventPublisher, error) {
-	conn, err := octopus.Client(clientId)
+func (octopus *EventOctopus) EventPublisher(clientID string) (IEventPublisher, error) {
+	conn, err := octopus.Client(clientID)
 	if err != nil {
 		return nil, err
 	}
@@ -428,8 +429,8 @@ func (octopus *EventOctopus) GetEvent(uuid string) (*Event, error) {
 	return event, err
 }
 
-// GetEventByExternalId returns single event or not based on given uuid
-func (octopus *EventOctopus) GetEventByExternalId(externalID string) (*Event, error) {
+// GetEventByExternalID returns single event or not based on given uuid
+func (octopus *EventOctopus) GetEventByExternalID(externalID string) (*Event, error) {
 	event := &Event{}
 
 	err := octopus.Db.Debug().Where("external_id = ?", externalID).First(&event).Error
@@ -459,8 +460,8 @@ func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
 	// actual query
 	target := &Event{}
 	// When using real DB:
-	// err := eo.Db.Set("gorm:query_option", "FOR UPDATE").Where("uuid = ?", event.Uuid).First(&target).Error
-	err := octopus.Db.Debug().Where("uuid = ?", event.Uuid).First(&target).Error
+	// err := eo.Db.Set("gorm:query_option", "FOR UPDATE").Where("uuid = ?", event.UUID).First(&target).Error
+	err := octopus.Db.Debug().Where("uuid = ?", event.UUID).First(&target).Error
 
 	if err == nil || gorm.IsRecordNotFoundError(err) {
 		octopus.Db.Debug().Save(&event)
@@ -471,13 +472,13 @@ func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
 	return tx.Commit().Error
 }
 
-// recover creates a map from event.Uuid to event.Name
+// recover creates a map from event.UUID to event.Name
 // for all items in the map that do not have the event.Name == EventCompleted, a new event will be published
 // unless the max retry count has been reached.
 func (octopus *EventOctopus) recover() error {
 	var events []Event
 
-	if err := octopus.Db.Debug().Order("uuid").Find(&events).Error; err != nil {
+	if err := octopus.Db.Debug().Find(&events).Error; err != nil {
 		return err
 	}
 
@@ -492,6 +493,7 @@ func (octopus *EventOctopus) recover() error {
 
 	events = events[0:added]
 
+	// Nats client ID's can not contain whitespace
 	publisher, err := octopus.EventPublisher(strings.Replace(octopus.Name, " ", "_", -1))
 	if err != nil {
 		return err

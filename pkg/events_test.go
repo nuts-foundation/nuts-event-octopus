@@ -60,8 +60,8 @@ var event = Event{
 	RetryCount:           0,
 	Payload:              "test",
 	Name:                 EventConsentRequestConstructed,
-	ExternalId:           "e_id",
-	ConsentId:            uuid.NewV4().String(),
+	ExternalID:           "e_id",
+	ConsentID:            uuid.NewV4().String(),
 	InitiatorLegalEntity: "urn:nuts:entity:test",
 }
 
@@ -85,7 +85,7 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 
 		e := event
 		u := uuid.NewV4().String()
-		e.Uuid = u
+		e.UUID = u
 
 		je, _ := json.Marshal(event)
 
@@ -110,7 +110,7 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 		u := uuid.NewV4().String()
 
 		e := event
-		e.Uuid = u
+		e.UUID = u
 
 		je, _ := json.Marshal(e)
 		_ = sc.Publish(ChannelConsentRequest, je)
@@ -324,9 +324,9 @@ func TestEventOctopus_recover(t *testing.T) {
 
 		// store new event
 		i.SaveOrUpdate(Event{
-			ExternalId: "2",
+			ExternalID: "2",
 			Name:       EventConsentDistributed,
-			Uuid:       uuid.NewV4().String(),
+			UUID:       uuid.NewV4().String(),
 		})
 
 		// start recover
@@ -335,7 +335,7 @@ func TestEventOctopus_recover(t *testing.T) {
 		// wait for event
 		wg.Wait()
 
-		if event.ExternalId != "2" {
+		if event.ExternalID != "2" {
 			t.Error("Expected to receive event with externalId 2")
 		}
 	})
@@ -351,26 +351,26 @@ func TestEventOctopus_purgeCompleted(t *testing.T) {
 
 		// store new events
 		i.SaveOrUpdate(Event{
-			ExternalId: "1",
+			ExternalID: "1",
 			Name:       EventCompleted,
-			Uuid:       uuid.NewV4().String(),
+			UUID:       uuid.NewV4().String(),
 		})
 
 		i.SaveOrUpdate(Event{
-			ExternalId: "2",
+			ExternalID: "2",
 			Name:       EventConsentDistributed,
-			Uuid:       uuid.NewV4().String(),
+			UUID:       uuid.NewV4().String(),
 		})
 
 		i.purgeCompleted()
 
-		e, _ := i.GetEventByExternalId("1")
+		e, _ := i.GetEventByExternalID("1")
 
 		if e != nil {
 			t.Error("Expected event with externalId 1 to be deleted")
 		}
 
-		e2, _ := i.GetEventByExternalId("2")
+		e2, _ := i.GetEventByExternalID("2")
 
 		if e2 == nil {
 			t.Error("Expected event with externalId 2 not to be deleted")
