@@ -386,10 +386,10 @@ func TestEventOctopus_recover(t *testing.T) {
 		i := testEventOctopus()
 		i.configure()
 		i.Start()
-		defer i.Shutdown()
 
 		sc := stanConnection()
 		defer sc.Close()
+		defer i.Shutdown()
 
 		event := &Event{}
 
@@ -421,6 +421,9 @@ func TestEventOctopus_recover(t *testing.T) {
 		if event.ExternalID != "2" {
 			t.Error("Expected to receive event with externalId 2")
 		}
+
+		// otherwise ack happens when disconnecting
+		time.Sleep(10 * time.Millisecond)
 	})
 
 }

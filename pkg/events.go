@@ -336,6 +336,7 @@ func (octopus *EventOctopus) Client(clientID string) (natsClient.Conn, error) {
 		"nuts",
 		clientID,
 		natsClient.NatsURL(fmt.Sprintf("nats://localhost:%d", octopus.Config.NatsPort)),
+
 	)
 	if err == nil {
 		octopus.stanClients[clientID] = client
@@ -381,7 +382,7 @@ func (octopus *EventOctopus) eventStoreClient() error {
 		logrus.Debugf("received event [%d]: %+v\n", msg.Sequence, event)
 
 		if err := msg.Ack(); err != nil {
-			logrus.WithError(err).Error("failed to ack message")
+			logrus.WithError(err).Fatal("failed to ack message")
 		}
 	}, natsClient.DurableName("consent-request-durable"),
 		natsClient.SetManualAckMode(),
@@ -396,7 +397,7 @@ func (octopus *EventOctopus) eventStoreClient() error {
 		logrus.Debugf("received error event [%d]: %+v\n", msg.Sequence, event)
 
 		if err := msg.Ack(); err != nil {
-			logrus.WithError(err).Error("failed to ack message")
+			logrus.WithError(err).Fatal("failed to ack message")
 		}
 	}, natsClient.DurableName("consent-request-error-durable"),
 		natsClient.SetManualAckMode(),
