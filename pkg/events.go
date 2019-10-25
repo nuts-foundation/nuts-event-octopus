@@ -30,6 +30,7 @@ import (
 	"github.com/nats-io/nats-streaming-server/stores"
 	natsClient "github.com/nats-io/stan.go"
 	"github.com/nuts-foundation/nuts-event-octopus/migrations"
+	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 	"strings"
 	"sync"
@@ -61,6 +62,9 @@ const ConfigPurgeCompleted = "purgeCompleted"
 
 // Name is the name of this module
 const Name = "Events octopus"
+
+// ClientID is the Nats client ID
+const ClientID = "event-store"
 
 // EventOctopusConfig holds the config for the EventOctopusInstance
 type EventOctopusConfig struct {
@@ -365,35 +369,77 @@ func (octopus *EventOctopus) EventPublisher(clientID string) (IEventPublisher, e
 func (octopus *EventOctopus) eventStoreClient() error {
 	logrus.Tracef("Connecting to Stan-Streaming server @ nats://localhost:%d", octopus.Config.NatsPort)
 
-	sc, err := octopus.Client("event-store")
+	sc, err := octopus.Client(ClientID)
 	if err != nil {
 		return err
 	}
 	// Subscribe with manual ack mode
-	// todo store Subscription?
 	_, err = sc.Subscribe(ChannelConsentRequest, func(msg *natsClient.Msg) {
-		event := Event{}
-		// Unmarshal JSON that represents the Order data
-		err := json.Unmarshal(msg.Data, &event)
-		if err != nil {
-			logrus.Errorf("Error unmarshalling event: %w", err)
-			return
-		}
-		// Handle the message
-		logrus.Debugf("Received event [%d]: %+v\n", msg.Sequence, event)
+		event := octopus.storeEvent(msg.Data)
 
-		if err := octopus.SaveOrUpdate(event); err != nil {
-			logrus.WithError(err).Error("Failed to store event", err)
+		// Handle the message
+		logrus.Debugf("received event [%d]: %+v\n", msg.Sequence, event)
+
+		if err := msg.Ack(); err != nil {
+			logrus.WithError(err).Error("failed to ack message")
 		}
-		_ = msg.Ack() // Manual ACK
 	}, natsClient.DurableName("consent-request-durable"),
-		natsClient.MaxInflight(1),
 		natsClient.SetManualAckMode(),
+		natsClient.StartWithLastReceived(),
+	)
+
+	// Subscribe to error channel
+	_, err = sc.Subscribe(ChannelConsentErrored, func(msg *natsClient.Msg) {
+		event := octopus.storeEvent(msg.Data)
+
+		// Handle the message
+		logrus.Debugf("received error event [%d]: %+v\n", msg.Sequence, event)
+
+		if err := msg.Ack(); err != nil {
+			logrus.WithError(err).Error("failed to ack message")
+		}
+	}, natsClient.DurableName("consent-request-error-durable"),
+		natsClient.SetManualAckMode(),
+		natsClient.StartWithLastReceived(),
 	)
 
 	logrus.Infof("Connected to Stan-Streaming server @ nats://localhost:%d", octopus.Config.NatsPort)
 
 	return err
+}
+
+func (octopus *EventOctopus) storeEvent(data []byte) Event {
+	event := Event{}
+
+	err := json.Unmarshal(data, &event)
+	if err != nil {
+		logrus.WithError(err).Errorf("Error unmarshalling event")
+		if event, err = octopus.saveAsErrored(data, err.Error()); err != nil {
+			logrus.WithError(err).Fatal("could not store errored event")
+		}
+
+		return event
+	}
+
+	if err := octopus.SaveOrUpdate(event); err != nil {
+		logrus.WithError(err).Fatal("could not store event")
+	}
+
+	return event
+}
+
+func (octopus *EventOctopus) saveAsErrored(bytes []byte, msg string) (Event, error) {
+	event := Event{
+		InitiatorLegalEntity: "unknown",
+		Error:                &msg,
+		ExternalID:           "unknown",
+		Payload:              string(bytes),
+		RetryCount:           0,
+		Name:                 EventErrored,
+		UUID:                 uuid.NewV4().String(),
+	}
+
+	return event, octopus.Db.Save(event).Error
 }
 
 // Shutdown closes the connection to the DB and the natsServer server
@@ -470,6 +516,7 @@ func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
 	// err := eo.Db.Set("gorm:query_option", "FOR UPDATE").Where("uuid = ?", event.UUID).First(&target).Error
 	err := octopus.Db.Debug().Where("uuid = ?", event.UUID).First(&target).Error
 
+	// TODO, check if event has to be overwritten!!!!
 	if err == nil || gorm.IsRecordNotFoundError(err) {
 		octopus.Db.Debug().Save(&event)
 	} else {

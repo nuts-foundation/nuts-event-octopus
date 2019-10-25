@@ -37,6 +37,8 @@ func (e Event) String() string {
 	return fmt.Sprintf("Name: %v, uuid: %v, externalId: %v, retryCount: %v, error: %v", e.Name, e.UUID, e.ExternalID, e.RetryCount, e.Error)
 }
 
+// TODO create matrix of overrides!!!
+
 // EventHandlerCallback defines the signature of an event handler method.
 type EventHandlerCallback func(event *Event)
 

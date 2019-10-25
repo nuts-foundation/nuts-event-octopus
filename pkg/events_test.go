@@ -92,7 +92,7 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 	t.Run("a published event is persisted in db", func(t *testing.T) {
 		stanClient := stanConnection()
 		defer stanClient.Close()
-		defer emptyTable(i)
+		emptyTable(i)
 
 		e := event
 		u := uuid.NewV4().String()
@@ -105,18 +105,39 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 
 		evts, err := i.List()
-		if err != nil {
-			t.Error("Expected no error", err)
+		if assert.Nil(t, err) {
+			assert.Equal(t, 1, len(*evts))
 		}
-		if len(*evts) != 1 {
-			t.Errorf("Expected 1 event in DB, found %d", len(*evts))
+	})
+
+	t.Run("an incorrect event is persisted in db as errored", func(t *testing.T) {
+		stanClient := stanConnection()
+		defer stanClient.Close()
+		emptyTable(i)
+
+		e := event
+		u := uuid.NewV4().String()
+		e.UUID = u
+
+		je := []byte("{")
+
+
+		_ = stanClient.Publish(ChannelConsentRequest, je)
+
+		time.Sleep(500 * time.Millisecond)
+
+		evts, err := i.List()
+
+		if assert.Nil(t, err) {
+			assert.Equal(t, 1, len(*evts))
+			assert.Equal(t, EventErrored, (*evts)[0].Name)
 		}
 	})
 
 	t.Run("a published event is updated in db", func(t *testing.T) {
 		sc := stanConnection()
 		defer sc.Close()
-		defer emptyTable(i)
+		emptyTable(i)
 
 		u := uuid.NewV4().String()
 
@@ -133,12 +154,10 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
-		evts, _ := i.List()
-		if len(*evts) != 1 {
-			t.Fatalf("Expected to have received exactly 1 event, got %v", len(*evts))
-		}
-		if (*evts)[0].Name != EventConsentRequestInFlight {
-			t.Errorf("Expected event to have name %s, found %s", EventConsentRequestInFlight, (*evts)[0].Name)
+		evts, err := i.List()
+		if assert.Nil(t, err) {
+			assert.Equal(t, 1, len(*evts))
+			assert.Equal(t, EventConsentRequestInFlight, (*evts)[0].Name)
 		}
 	})
 }
@@ -273,7 +292,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 
 func emptyTable(eo *EventOctopus) {
 	event := &Event{}
-	defer eo.Db.Delete(&event)
+	eo.Db.Delete(&event)
 }
 
 func stanConnection() natsClient.Conn {
