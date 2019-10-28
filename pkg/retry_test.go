@@ -67,6 +67,8 @@ func TestDelayedConsumer(t *testing.T) {
 		}
 
 		if assert.Nil(t, dc.Start()) {
+			pendingBefore, _, _ := dc.subscription.Pending()
+
 			sc.Publish("channelIn", []byte("test"))
 
 			sc.Close()
@@ -75,9 +77,9 @@ func TestDelayedConsumer(t *testing.T) {
 			// restart subscription
 			dc.conn = conn("unconsume")
 			assert.Nil(t, dc.Start())
-			pending, _, _ := dc.subscription.Pending()
+			pendingAfter, _, _ := dc.subscription.Pending()
 
-			assert.Equal(t, 1, pending)
+			assert.Equal(t, 1, pendingAfter-pendingBefore)
 		}
 	})
 }

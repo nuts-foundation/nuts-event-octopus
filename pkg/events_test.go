@@ -69,7 +69,7 @@ func TestEventOctopus_Start(t *testing.T) {
 }
 
 func TestEventOctopus_Shutdown(t *testing.T) {
-	t.Run("Terminating zmqCtx does not give errors for default values", func(t *testing.T) {
+	t.Run("Terminating does not give errors for default values", func(t *testing.T) {
 		eo := testEventOctopus()
 		_ = eo.configure()
 		_ = eo.Shutdown()
@@ -335,6 +335,92 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 			t.Errorf("expected 2 clients, got %v", len(i.stanClients))
 		}
 
+	})
+}
+
+func TestEventOctopus_Retry(t *testing.T) {
+	i := testEventOctopus()
+	_ = i.Configure()
+	_ = i.Start()
+	defer i.Shutdown()
+
+	t.Run("event published to retry channel is picked up and republished to channel", func(t *testing.T) {
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+
+		uuid := uuid.NewV4().String()
+
+		// the event
+		var event = Event{
+			RetryCount:           0,
+			Payload:              "test",
+			Name:                 EventConsentRequestConstructed,
+			ExternalID:           "e_id",
+			UUID:                 uuid,
+			InitiatorLegalEntity: "urn:nuts:entity:test",
+		}
+		var receivedEvent *Event
+
+		// subscription for waiting
+		i.Subscribe(
+			"test",
+			ChannelConsentRequest,
+			map[string]EventHandlerCallback{
+				EventConsentRequestConstructed: func(event *Event) {
+					receivedEvent = event
+					wg.Done()
+				},
+			},
+		)
+
+		if err := i.publishEventToChannel(event, ChannelConsentRetry); err != nil {
+			t.Fatal(err)
+		}
+
+		wg.Wait()
+
+		assert.Equal(t, uuid, receivedEvent.UUID)
+		assert.Equal(t, int32(1), receivedEvent.RetryCount)
+	})
+
+	t.Run("event published to retry channel with max retry count is persisted as error", func(t *testing.T) {
+		defer emptyTable(i)
+
+		var event = Event{
+			RetryCount:           ConfigMaxRetryCountDefault,
+			Payload:              "test",
+			Name:                 EventConsentRequestConstructed,
+			ExternalID:           "e_id",
+			UUID:                 uuid.NewV4().String(),
+			InitiatorLegalEntity: "urn:nuts:entity:test",
+		}
+
+		if err := i.publishEventToChannel(event, ChannelConsentRetry); err != nil {
+			t.Fatal(err)
+		}
+
+		var e *Event
+		poller := make(chan *Event)
+
+		go func() {
+			for {
+				e, _ := i.GetEvent(event.UUID)
+				if e != nil {
+					poller <- e
+				}
+				time.Sleep(1 * time.Millisecond)
+			}
+		}()
+
+		select {
+		case e = <-poller:
+		case <-time.After(10 * time.Millisecond):
+		}
+
+		if assert.NotNil(t, e) {
+			assert.Equal(t, EventErrored, e.Name)
+			assert.Equal(t, "max retry count reached", *e.Error)
+		}
 	})
 }
 

@@ -86,7 +86,7 @@ type EventOctopusConfig struct {
 	Connectionstring   string
 	AutoRecover        bool
 	PurgeCompleted     bool
-	MaxRetryCount	   int
+	MaxRetryCount      int
 	IncrementalBackoff int
 }
 
@@ -401,6 +401,9 @@ func (octopus *EventOctopus) startSubscribers() error {
 	}, natsClient.DurableName("consent-request-durable"),
 		natsClient.StartWithLastReceived(),
 	)
+	if err != nil {
+		return err
+	}
 
 	// Subscribe to error subject
 	_, err = sc.Subscribe(ChannelConsentErrored, func(msg *natsClient.Msg) {
@@ -411,6 +414,9 @@ func (octopus *EventOctopus) startSubscribers() error {
 	}, natsClient.DurableName("consent-request-error-durable"),
 		natsClient.StartWithLastReceived(),
 	)
+	if err != nil {
+		return err
+	}
 
 	// Subscribe to retry subject
 	_, err = sc.Subscribe(ChannelConsentRetry, func(msg *natsClient.Msg) {
@@ -424,8 +430,11 @@ func (octopus *EventOctopus) startSubscribers() error {
 			return
 		}
 
-		if event.RetryCount == int32(octopus.Config.MaxRetryCount) {
-			octopus.saveAsErrored(msg.Data, "max retry count reached")
+		if event.RetryCount >= int32(octopus.Config.MaxRetryCount) {
+			event.Name = EventErrored
+			errStr := "max retry count reached"
+			event.Error = &errStr
+			octopus.SaveOrUpdate(event)
 
 			return
 		}
@@ -438,6 +447,9 @@ func (octopus *EventOctopus) startSubscribers() error {
 	}, natsClient.DurableName("consent-request-retry-durable"),
 		natsClient.StartWithLastReceived(),
 	)
+	if err != nil {
+		return err
+	}
 
 	// subscribe retry channels
 	octopus.delayedConsumers = NewDelayedConsumerSet(ChannelConsentRetry, ChannelConsentRequest, octopus.Config.MaxRetryCount, time.Second, octopus.Config.IncrementalBackoff, sc)
@@ -474,6 +486,21 @@ func (octopus *EventOctopus) publishEventToRetryChannel(event Event) error {
 	})
 
 	return err
+}
+
+func (octopus *EventOctopus) publishEventToChannel(event Event, channel string) error {
+	conn, err := octopus.Client(ClientID)
+	if err != nil {
+		return err
+	}
+
+	eventBytes, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+
+	// publish async otherwise we'll be waiting for the retry procedure to ack
+	return conn.Publish(channel, eventBytes)
 }
 
 func (octopus *EventOctopus) storeEvent(data []byte) Event {
