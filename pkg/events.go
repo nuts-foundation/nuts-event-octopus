@@ -81,11 +81,13 @@ const ClientID = "event-store"
 
 // EventOctopusConfig holds the config for the EventOctopusInstance
 type EventOctopusConfig struct {
-	RetryInterval    int
-	NatsPort         int
-	Connectionstring string
-	AutoRecover      bool
-	PurgeCompleted   bool
+	RetryInterval      int
+	NatsPort           int
+	Connectionstring   string
+	AutoRecover        bool
+	PurgeCompleted     bool
+	MaxRetryCount	   int
+	IncrementalBackoff int
 }
 
 // IEventPublisher defines the Publish signature so it can be mocked or implemented for another tech
@@ -117,8 +119,6 @@ type EventOctopus struct {
 	stanClients     map[string]natsClient.Conn
 	channelHandlers map[string]map[string]ChannelHandlers
 	// Retry
-	retryCount       int
-	retryDelay       time.Duration
 	delayedConsumers []*DelayedConsumer
 }
 
@@ -131,13 +131,14 @@ func EventOctopusInstance() *EventOctopus {
 		instance = &EventOctopus{
 			Name: Name,
 			Config: EventOctopusConfig{
-				RetryInterval:    ConfigRetryIntervalDefault,
-				NatsPort:         ConfigNatsPortDefault,
-				Connectionstring: ConfigConnectionStringDefault,
+				RetryInterval:      ConfigRetryIntervalDefault,
+				NatsPort:           ConfigNatsPortDefault,
+				Connectionstring:   ConfigConnectionStringDefault,
+				MaxRetryCount:      ConfigMaxRetryCountDefault,
+				IncrementalBackoff: ConfigIncrementalBackoffDefault,
 			},
 			channelHandlers: make(map[string]map[string]ChannelHandlers),
 			stanClients:     make(map[string]natsClient.Conn),
-			retryCount:      5, // todo via config
 		}
 	})
 	return instance
@@ -433,7 +434,7 @@ func (octopus *EventOctopus) startSubscribers() error {
 			return
 		}
 
-		if event.RetryCount == int32(octopus.retryCount) {
+		if event.RetryCount == int32(octopus.Config.MaxRetryCount) {
 			octopus.saveAsErrored(msg.Data, "max retry count reached")
 
 			return
@@ -454,7 +455,7 @@ func (octopus *EventOctopus) startSubscribers() error {
 	)
 
 	// subscribe retry channels
-	octopus.delayedConsumers = NewDelayedConsumerSet(ChannelConsentRetry, ChannelConsentRequest, octopus.retryCount, octopus.retryDelay, 8, sc, nil)
+	octopus.delayedConsumers = NewDelayedConsumerSet(ChannelConsentRetry, ChannelConsentRequest, octopus.Config.MaxRetryCount, time.Second, octopus.Config.IncrementalBackoff, sc)
 	for _, dc := range octopus.delayedConsumers {
 		if err := dc.Start(); err != nil {
 			return err

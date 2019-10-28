@@ -80,51 +80,10 @@ func TestDelayedConsumer(t *testing.T) {
 			assert.Equal(t, 1, pending)
 		}
 	})
-
-	t.Run("failureFunc is called when unable to publish", func(t *testing.T) {
-		found := false
-		sc := conn("failureFunc")
-		defer sc.Close()
-
-		dc := DelayedConsumer{
-			consumeSubject: "in",
-			publishSubject: "out",
-			conn:           sc,
-			delay:          10 * time.Millisecond,
-			failureFunc: func(msg string, err error) {
-				found = true
-			},
-		}
-
-		sc.Subscribe("out", func(msg *stan.Msg) {
-			sc.NatsConn().Close() // this will make the Ack fail
-		})
-
-		if assert.Nil(t, dc.Start()) {
-			sc.Publish("in", []byte("test"))
-
-			time.Sleep(15 * time.Millisecond)
-
-			assert.True(t, found)
-		}
-	})
-}
-
-func TestDelayedConsumer_Start(t *testing.T) {
-	i := testEventOctopus()
-	_ = i.nats()
-	defer i.Shutdown()
-
-	t.Run("set default failure func", func(t *testing.T) {
-		dc := DelayedConsumer{conn: conn("failureFunc")}
-		dc.Start()
-
-		assert.NotNil(t, dc.failureFunc)
-	})
 }
 
 func TestNewDelayedConsumerSet(t *testing.T) {
-	set := NewDelayedConsumerSet("in", "out", 3, time.Millisecond, 2, nil, nil)
+	set := NewDelayedConsumerSet("in", "out", 3, time.Millisecond, 2, nil)
 
 	t.Run("gives the correct number of DelayedConsumer", func(t *testing.T) {
 		assert.Equal(t, 3, len(set))

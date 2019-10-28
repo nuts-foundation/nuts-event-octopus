@@ -29,6 +29,19 @@ import (
 	"time"
 )
 
+func TestEventOctopusInstance(t *testing.T) {
+	i := EventOctopusInstance()
+
+	t.Run("sets defaults", func(t *testing.T) {
+		assert.Equal(t, i.Config.IncrementalBackoff, ConfigIncrementalBackoffDefault)
+		assert.Equal(t, i.Config.MaxRetryCount, ConfigMaxRetryCountDefault)
+		assert.Equal(t, i.Config.PurgeCompleted, false)
+		assert.Equal(t, i.Config.AutoRecover, false)
+		assert.Equal(t, i.Config.NatsPort, ConfigNatsPortDefault)
+		assert.Equal(t, i.Config.Connectionstring, ConfigConnectionStringDefault)
+	})
+}
+
 func TestEventOctopus_Configure(t *testing.T) {
 	t.Run("Configure runs only once", func(t *testing.T) {
 		i := testEventOctopus()
@@ -48,10 +61,10 @@ func TestEventOctopus_Start(t *testing.T) {
 	_ = eo.configure()
 	defer eo.Shutdown()
 
-	t.Run("feedbackChannel receives nil value on default config", func(t *testing.T) {
-		if err := eo.Start(); err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
+	t.Run("initializes the delayedConsumers", func(t *testing.T) {
+		assert.NoError(t, eo.Start())
+
+		assert.Equal(t, 5, len(eo.delayedConsumers))
 	})
 }
 
@@ -316,6 +329,7 @@ func testEventOctopus() *EventOctopus {
 			RetryInterval:    ConfigRetryIntervalDefault,
 			NatsPort:         ConfigNatsPortDefault,
 			Connectionstring: ConfigConnectionStringDefault,
+			MaxRetryCount:    ConfigMaxRetryCountDefault,
 		},
 		channelHandlers: make(map[string]map[string]ChannelHandlers),
 		stanClients:     make(map[string]natsClient.Conn),

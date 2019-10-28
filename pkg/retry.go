@@ -25,8 +25,6 @@ import (
 	"time"
 )
 
-type FailureFunc func(msg string, err error)
-
 // DelayedConsumer holds info for creating a subscription on Nats for consuming events and re-publishing them with a certain delay
 type DelayedConsumer struct {
 	consumeSubject string        // Channel/topic to read from
@@ -34,20 +32,11 @@ type DelayedConsumer struct {
 	delay          time.Duration // time to wait for sending ack
 	conn           stan.Conn     // ackWait must match!
 	subscription   stan.Subscription
-	failureFunc    FailureFunc // what to do when something fails
-}
-
-func defaultFailure(msg string, err error) {
-	logrus.WithError(err).Fatal(msg)
 }
 
 // Start starts the subscription on the given connection
 func (dc *DelayedConsumer) Start() error {
 	var err error
-
-	if dc.failureFunc == nil {
-		dc.failureFunc = defaultFailure
-	}
 
 	dc.subscription, err = dc.conn.Subscribe(dc.consumeSubject, func(msg *stan.Msg) {
 		// delegate to go procedure
@@ -73,10 +62,10 @@ func (dc *DelayedConsumer) delayedPublishAndAck(msg *stan.Msg) {
 	if dc.conn.NatsConn() != nil {
 		if dc.conn.NatsConn().IsConnected() {
 			if err := dc.conn.Publish(dc.publishSubject, msg.Data); err != nil {
-				dc.failureFunc("failed to publish delayed message", err)
+				logrus.WithError(err).Fatal("failed to publish delayed message")
 			}
 			if err := msg.Ack(); err != nil {
-				dc.failureFunc("failed to ack retry message", err)
+				logrus.WithError(err).Fatal("failed to ack retry message")
 			}
 		} else {
 			logrus.Warnf("ignoring retry message, no connection available, current status: %d", dc.conn.NatsConn().Status())
@@ -85,7 +74,7 @@ func (dc *DelayedConsumer) delayedPublishAndAck(msg *stan.Msg) {
 }
 
 // NewDelayedConsumerSet creates a set of DelayedConsumer where each successive poller has a interval which is exponent times bigger than the previous one
-func NewDelayedConsumerSet(consumeSubject string, publishSubject string, count int, interval time.Duration, exponent int64, conn stan.Conn, failureFunc FailureFunc) []*DelayedConsumer {
+func NewDelayedConsumerSet(consumeSubject string, publishSubject string, count int, interval time.Duration, exponent int, conn stan.Conn) []*DelayedConsumer {
 	var pollers []*DelayedConsumer
 
 	expInterval := interval
@@ -97,7 +86,6 @@ func NewDelayedConsumerSet(consumeSubject string, publishSubject string, count i
 			publishSubject: publishSubject,
 			delay:          expInterval,
 			conn:           conn,
-			failureFunc:    failureFunc,
 		})
 
 		expInterval *= time.Duration(exponent)
