@@ -449,10 +449,11 @@ func testEventOctopus() *EventOctopus {
 	return &EventOctopus{
 		Name: Name,
 		Config: EventOctopusConfig{
-			RetryInterval:    ConfigRetryIntervalDefault,
-			NatsPort:         ConfigNatsPortDefault,
-			Connectionstring: ConfigConnectionStringDefault,
-			MaxRetryCount:    ConfigMaxRetryCountDefault,
+			RetryInterval:      ConfigRetryIntervalDefault,
+			NatsPort:           ConfigNatsPortDefault,
+			Connectionstring:   ConfigConnectionStringDefault,
+			MaxRetryCount:      ConfigMaxRetryCountDefault,
+			IncrementalBackoff: ConfigIncrementalBackoffDefault,
 		},
 		channelHandlers: make(map[string]map[string]ChannelHandlers),
 		stanClients:     make(map[string]natsClient.Conn),
