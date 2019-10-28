@@ -82,6 +82,28 @@ func TestDelayedConsumer(t *testing.T) {
 	})
 }
 
+func TestDelayedConsumer_Stop(t *testing.T) {
+	i := testEventOctopus()
+	_ = i.nats()
+	defer i.Shutdown()
+
+	t.Run("stop closes the subscription", func(t *testing.T) {
+		sc := conn("close")
+
+		dc := DelayedConsumer{
+			consumeSubject: "channelIn",
+			publishSubject: "channelOut",
+			conn:           sc,
+			delay:          10 * time.Millisecond,
+		}
+
+		if assert.Nil(t, dc.Start()) {
+			assert.Nil(t, dc.Stop())
+			assert.False(t, dc.subscription.IsValid())
+		}
+	})
+}
+
 func TestNewDelayedConsumerSet(t *testing.T) {
 	set := NewDelayedConsumerSet("in", "out", 3, time.Millisecond, 2, nil)
 
