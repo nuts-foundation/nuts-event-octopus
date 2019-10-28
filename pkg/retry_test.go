@@ -57,34 +57,6 @@ func TestDelayedConsumer(t *testing.T) {
 			assert.True(t, found)
 		}
 	})
-
-	t.Run("when not connected for publishing, msg remains", func(t *testing.T) {
-		sc := conn("unconsume")
-
-		dc := DelayedConsumer{
-			consumeSubject: "channelIn",
-			publishSubject: "channelOut",
-			conn:           sc,
-			delay:          10 * time.Millisecond,
-		}
-
-		if assert.Nil(t, dc.Start()) {
-			defer dc.subscription.Unsubscribe()
-			pendingBefore, _, _ := dc.subscription.Pending()
-
-			sc.Publish("channelIn", []byte("test"))
-
-			sc.Close()
-			time.Sleep(15 * time.Millisecond)
-
-			// restart subscription
-			dc.conn = conn("unconsume")
-			assert.Nil(t, dc.Start())
-			pendingAfter, _, _ := dc.subscription.Pending()
-
-			assert.Equal(t, 1, pendingAfter-pendingBefore)
-		}
-	})
 }
 
 func TestDelayedConsumer_Stop(t *testing.T) {
