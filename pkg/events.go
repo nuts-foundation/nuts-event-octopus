@@ -537,7 +537,6 @@ func (octopus *EventOctopus) saveAsErrored(bytes []byte, msg string) Event {
 	return event
 }
 
-// todo manual shutdown of subscriptions?
 // Shutdown closes the connection to the DB and the natsServer server
 func (octopus *EventOctopus) Shutdown() error {
 	var err error
