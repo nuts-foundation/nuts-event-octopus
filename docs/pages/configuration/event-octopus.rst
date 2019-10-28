@@ -15,6 +15,8 @@ events.natsPort                         4222                                    
 events.retryInterval                    60                                      Retry delay in seconds for reconnecting
 events.autoRecover                      true                                    Republish unfinished events at startup
 events.purgeCompleted                   true                                    Purge completed events at startup
+events.maxRetryCount                    5                                       Max number of retries for events before giving up (only for recoverable errors)
+events.incrementalBackoff               8                                       Incremental backoff per retry queue, queue 0 retries after 1 second, queue 1 after {incrementalBackoff} * {previousDelay}
 ===================================     ======================================  ========================================
 
 As with all other properties for nuts-go, they can be set through yaml:

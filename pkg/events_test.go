@@ -121,7 +121,6 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 
 		je := []byte("{")
 
-
 		_ = stanClient.Publish(ChannelConsentRequest, je)
 
 		time.Sleep(500 * time.Millisecond)
@@ -203,8 +202,9 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 		_ = publisher.Publish("EventRequestEvents", event)
 
 		select {
-			case <-notify:called = true
-			case <-time.After(10 * time.Millisecond):
+		case <-notify:
+			called = true
+		case <-time.After(10 * time.Millisecond):
 		}
 
 		assert.True(t, called)
