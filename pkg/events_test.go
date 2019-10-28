@@ -223,6 +223,41 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 		assert.True(t, called)
 	})
 
+	t.Run("unknown event is ignored", func(t *testing.T) {
+		i := testEventOctopus()
+		i.configure()
+		i.Start()
+		defer i.Shutdown()
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+
+		_ = i.Subscribe("event-logic",
+			"EventRequestEvents",
+			map[string]EventHandlerCallback{
+				"other event": func(event *Event) {
+					wg.Done()
+				},
+			})
+
+		publisher, _ := i.EventPublisher("event-octopus-test")
+
+		notify := make(chan bool)
+
+		go func() {
+			wg.Wait()
+			notify <- true
+		}()
+
+		_ = publisher.Publish("EventRequestEvents", event)
+
+		select {
+		case <-notify:
+			assert.Fail(t, "did not expect event to be handled")
+		case <-time.After(10 * time.Millisecond):
+		}
+	})
+
 	t.Run("adding handlers for the same service and subject should merge the handlers", func(t *testing.T) {
 		i := testEventOctopus()
 		i.configure()
@@ -363,6 +398,15 @@ func TestEventOctopus_Unsubscribe(t *testing.T) {
 		err := i.Unsubscribe("unknown", "unknown")
 
 		assert.NotNil(t, err)
+	})
+
+	t.Run("return error when subscription has been removed in lower level logic", func(t *testing.T) {
+		i.Subscribe("service", "subject", map[string]EventHandlerCallback{"foo": func(event *Event) {}, "bar": func(event *Event) {}})
+
+		// remove at stan level
+		if assert.NoError(t, i.channelHandlers["service"]["subject"].subscription.Unsubscribe()) {
+			assert.Error(t, i.Unsubscribe("service", "subject"))
+		}
 	})
 
 }
