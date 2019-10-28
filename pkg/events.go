@@ -398,12 +398,7 @@ func (octopus *EventOctopus) startSubscribers() error {
 
 		// Handle the message
 		logrus.Debugf("received event [%d]: %+v\n", msg.Sequence, event)
-
-		if err := msg.Ack(); err != nil {
-			logrus.WithError(err).Fatal("failed to ack message")
-		}
 	}, natsClient.DurableName("consent-request-durable"),
-		natsClient.SetManualAckMode(),
 		natsClient.StartWithLastReceived(),
 	)
 
@@ -413,12 +408,7 @@ func (octopus *EventOctopus) startSubscribers() error {
 
 		// Handle the message
 		logrus.Debugf("received error event [%d]: %+v\n", msg.Sequence, event)
-
-		if err := msg.Ack(); err != nil {
-			logrus.WithError(err).Fatal("failed to ack message")
-		}
 	}, natsClient.DurableName("consent-request-error-durable"),
-		natsClient.SetManualAckMode(),
 		natsClient.StartWithLastReceived(),
 	)
 
@@ -444,13 +434,8 @@ func (octopus *EventOctopus) startSubscribers() error {
 			logrus.WithError(err).Fatal("failed to publish message to retry channel")
 		}
 
-		if err := msg.Ack(); err != nil {
-			logrus.WithError(err).Fatal("failed to ack message")
-		}
-
 		logrus.Debugf("received retry event [%d]: %+v\n", msg.Sequence, event)
 	}, natsClient.DurableName("consent-request-retry-durable"),
-		natsClient.SetManualAckMode(),
 		natsClient.StartWithLastReceived(),
 	)
 
