@@ -414,12 +414,14 @@ func TestEventOctopus_Retry(t *testing.T) {
 
 		select {
 		case e = <-poller:
-		case <-time.After(10 * time.Millisecond):
+		case <-time.After(20 * time.Millisecond):
 		}
 
 		if assert.NotNil(t, e) {
 			assert.Equal(t, EventErrored, e.Name)
-			assert.Equal(t, "max retry count reached", *e.Error)
+			if assert.NotNil(t, e.Error) {
+				assert.Equal(t, "max retry count reached", *e.Error)
+			}
 		}
 	})
 }
