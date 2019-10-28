@@ -414,7 +414,7 @@ func TestEventOctopus_Retry(t *testing.T) {
 
 		select {
 		case e = <-poller:
-		case <-time.After(20 * time.Millisecond):
+		case <-time.After(50 * time.Millisecond):
 		}
 
 		if assert.NotNil(t, e) {
