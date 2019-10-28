@@ -42,11 +42,13 @@ func TestDelayedConsumer(t *testing.T) {
 		}
 
 		if assert.Nil(t, dc.Start()) {
+			defer dc.subscription.Unsubscribe()
 			found := false
 
-			sc.Subscribe("channelOut", func(msg *stan.Msg) {
+			sub, _ := sc.Subscribe("channelOut", func(msg *stan.Msg) {
 				found = true
 			})
+			defer sub.Unsubscribe()
 
 			sc.Publish("channelIn", []byte("test"))
 
@@ -67,6 +69,7 @@ func TestDelayedConsumer(t *testing.T) {
 		}
 
 		if assert.Nil(t, dc.Start()) {
+			defer dc.subscription.Unsubscribe()
 			pendingBefore, _, _ := dc.subscription.Pending()
 
 			sc.Publish("channelIn", []byte("test"))
@@ -100,6 +103,7 @@ func TestDelayedConsumer_Stop(t *testing.T) {
 		}
 
 		if assert.Nil(t, dc.Start()) {
+			defer dc.subscription.Unsubscribe()
 			assert.Nil(t, dc.Stop())
 			assert.False(t, dc.subscription.IsValid())
 		}

@@ -124,6 +124,7 @@ type EventOctopus struct {
 
 var instance *EventOctopus
 var oneInstance = &sync.Once{}
+var mutex = sync.Mutex{}
 
 // EventOctopusInstance returns the EventOctopus singleton
 func EventOctopusInstance() *EventOctopus {
@@ -530,7 +531,8 @@ func (octopus *EventOctopus) saveAsErrored(bytes []byte, msg string) Event {
 		UUID:                 uuid.NewV4().String(),
 	}
 
-	if err := octopus.Db.Save(event).Error; err != nil {
+	// go through transaction
+	if err := octopus.SaveOrUpdate(event); err != nil {
 		logrus.WithError(err).Fatal("could not store errored event")
 	}
 
@@ -574,6 +576,10 @@ func (octopus *EventOctopus) GetEvent(uuid string) (*Event, error) {
 		return nil, nil
 	}
 
+	if err != nil {
+		return nil ,err
+	}
+
 	return event, err
 }
 
@@ -587,11 +593,20 @@ func (octopus *EventOctopus) GetEventByExternalID(externalID string) (*Event, er
 		return nil, nil
 	}
 
+	if err != nil {
+		return nil, err
+	}
+
 	return event, err
 }
 
 // SaveOrUpdate saves or update the event in the store.
 func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
+
+	// sqlite is giving problems
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	// start transaction
 	tx := octopus.Db.Begin()
 	defer func() {
@@ -613,11 +628,14 @@ func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
 
 	// TODO, check if event has to be overwritten!!!!
 	if err == nil || gorm.IsRecordNotFoundError(err) {
-		octopus.Db.Debug().Save(&event)
-	} else {
+		err = octopus.Db.Debug().Save(&event).Error
+	}
+
+	if err != nil {
 		tx.Rollback()
 		return err
 	}
+
 	return tx.Commit().Error
 }
 

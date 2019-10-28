@@ -92,7 +92,7 @@ var event = Event{
 func TestEventOctopus_EventPersisted(t *testing.T) {
 	i := testEventOctopus()
 	defer i.Shutdown()
-	i.Config.Connectionstring = "file::memory:?cache=shared"
+	i.Config.Connectionstring = "file::memory:?cache=shared&_busy_timeout=2500"
 	i.configure()
 	if err := i.Start(); err != nil {
 		fmt.Printf("%v\n", err)
@@ -386,7 +386,7 @@ func TestEventOctopus_Retry(t *testing.T) {
 	t.Run("event published to retry channel with max retry count is persisted as error", func(t *testing.T) {
 		defer emptyTable(i)
 
-		var event = Event{
+		var e1 = Event{
 			RetryCount:           ConfigMaxRetryCountDefault,
 			Payload:              "test",
 			Name:                 EventConsentRequestConstructed,
@@ -395,7 +395,7 @@ func TestEventOctopus_Retry(t *testing.T) {
 			InitiatorLegalEntity: "urn:nuts:entity:test",
 		}
 
-		if err := i.publishEventToChannel(event, ChannelConsentRetry); err != nil {
+		if err := i.publishEventToChannel(e1, ChannelConsentRetry); err != nil {
 			t.Fatal(err)
 		}
 
@@ -404,11 +404,12 @@ func TestEventOctopus_Retry(t *testing.T) {
 
 		go func() {
 			for {
-				e, _ := i.GetEvent(event.UUID)
+				e, _ := i.GetEvent(e1.UUID)
 				if e != nil {
 					poller <- e
+					return
 				}
-				time.Sleep(5 * time.Millisecond)
+				time.Sleep(10 * time.Millisecond)
 			}
 		}()
 
@@ -418,8 +419,8 @@ func TestEventOctopus_Retry(t *testing.T) {
 		}
 
 		if assert.NotNil(t, e) {
-			assert.Equal(t, EventErrored, e.Name)
-			if assert.NotNil(t, e.Error) {
+			assert.Equal(t, EventErrored, e.Name, e.String())
+			if assert.NotNil(t, e.Error, e.String()) {
 				assert.Equal(t, "max retry count reached", *e.Error)
 			}
 		}

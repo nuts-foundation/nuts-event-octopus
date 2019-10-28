@@ -32,6 +32,7 @@ type DelayedConsumer struct {
 	delay          time.Duration // time to wait for sending ack
 	conn           stan.Conn     // ackWait must match!
 	subscription   stan.Subscription
+	shutdown 	   bool
 }
 
 // Start starts the subscription on the given connection
@@ -57,7 +58,17 @@ func (dc *DelayedConsumer) Start() error {
 }
 
 func (dc *DelayedConsumer) delayedPublishAndAck(msg *stan.Msg) {
-	time.Sleep(dc.delay)
+	targetTime := time.Now().Add(dc.delay)
+
+	for {
+		time.Sleep(10 * time.Millisecond)
+		if dc.shutdown {
+			return
+		}
+		if time.Now().After(targetTime) {
+			break
+		}
+	}
 
 	if dc.conn.NatsConn() != nil {
 		if dc.conn.NatsConn().IsConnected() {
@@ -96,5 +107,6 @@ func NewDelayedConsumerSet(consumeSubject string, publishSubject string, count i
 
 // Stop stops the consumer
 func (dc *DelayedConsumer) Stop() error {
+	dc.shutdown = true
 	return dc.subscription.Close()
 }
