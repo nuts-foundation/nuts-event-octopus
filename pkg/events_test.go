@@ -408,7 +408,7 @@ func TestEventOctopus_Retry(t *testing.T) {
 				if e != nil {
 					poller <- e
 				}
-				time.Sleep(1 * time.Millisecond)
+				time.Sleep(5 * time.Millisecond)
 			}
 		}()
 
