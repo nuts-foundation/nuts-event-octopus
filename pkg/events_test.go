@@ -460,7 +460,7 @@ func stanConnection() natsClient.Conn {
 	sc, err := natsClient.Connect(
 		"nuts",
 		"event-octopus-test",
-		natsClient.NatsURL("startStanServer://localhost:4222"),
+		natsClient.NatsURL("nats://localhost:4222"),
 	)
 
 	if err != nil {

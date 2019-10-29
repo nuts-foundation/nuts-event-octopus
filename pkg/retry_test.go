@@ -112,7 +112,7 @@ func conn(id string) stan.Conn {
 	sc, err := stan.Connect(
 		"nuts",
 		id,
-		stan.NatsURL("startStanServer://localhost:4222"),
+		stan.NatsURL("nats://localhost:4222"),
 	)
 
 	if err != nil {

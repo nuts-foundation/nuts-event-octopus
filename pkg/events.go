@@ -46,10 +46,10 @@ const ConfigNatsPort = "natsPort"
 // ConfigConnectionstring defines the string for the flagset
 const ConfigConnectionstring = "connectionstring"
 
-// ConfigRetryIntervalDefault defines the default for the startStanServer retryInterval
+// ConfigRetryIntervalDefault defines the default for the nats retryInterval
 const ConfigRetryIntervalDefault = 60
 
-// ConfigNatsPortDefault defines the default startStanServer port
+// ConfigNatsPortDefault defines the default nats port
 const ConfigNatsPortDefault = 4222
 
 // ConfigConnectionStringDefault defines the default sqlite connection string
@@ -355,7 +355,7 @@ func (octopus *EventOctopus) client(clientID string) (natsClient.Conn, error) {
 	client, err := natsClient.Connect(
 		"nuts",
 		clientID,
-		natsClient.NatsURL(fmt.Sprintf("startStanServer://localhost:%d", octopus.Config.NatsPort)),
+		natsClient.NatsURL(fmt.Sprintf("nats://localhost:%d", octopus.Config.NatsPort)),
 	)
 	if err == nil {
 		octopus.stanClients[clientID] = client
@@ -387,7 +387,7 @@ func (octopus *EventOctopus) EventPublisher(clientID string) (IEventPublisher, e
 }
 
 func (octopus *EventOctopus) startSubscribers() error {
-	logrus.Tracef("Connecting to Stan-Streaming server @ startStanServer://localhost:%d", octopus.Config.NatsPort)
+	logrus.Tracef("Connecting to Stan-Streaming server @ nats://localhost:%d", octopus.Config.NatsPort)
 
 	sc, err := octopus.client(ClientID)
 	if err != nil {
@@ -460,7 +460,7 @@ func (octopus *EventOctopus) startSubscribers() error {
 		}
 	}
 
-	logrus.Infof("Connected to Stan-Streaming server @ startStanServer://localhost:%d", octopus.Config.NatsPort)
+	logrus.Infof("Connected to Stan-Streaming server @ nats://localhost:%d", octopus.Config.NatsPort)
 
 	return err
 }
