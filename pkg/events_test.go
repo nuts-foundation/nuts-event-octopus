@@ -29,6 +29,19 @@ import (
 	"time"
 )
 
+func TestEventOctopusInstance(t *testing.T) {
+	i := EventOctopusInstance()
+
+	t.Run("sets defaults", func(t *testing.T) {
+		assert.Equal(t, i.Config.IncrementalBackoff, ConfigIncrementalBackoffDefault)
+		assert.Equal(t, i.Config.MaxRetryCount, ConfigMaxRetryCountDefault)
+		assert.Equal(t, i.Config.PurgeCompleted, false)
+		assert.Equal(t, i.Config.AutoRecover, false)
+		assert.Equal(t, i.Config.NatsPort, ConfigNatsPortDefault)
+		assert.Equal(t, i.Config.Connectionstring, ConfigConnectionStringDefault)
+	})
+}
+
 func TestEventOctopus_Configure(t *testing.T) {
 	t.Run("Configure runs only once", func(t *testing.T) {
 		i := testEventOctopus()
@@ -48,15 +61,15 @@ func TestEventOctopus_Start(t *testing.T) {
 	_ = eo.configure()
 	defer eo.Shutdown()
 
-	t.Run("feedbackChannel receives nil value on default config", func(t *testing.T) {
-		if err := eo.Start(); err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
+	t.Run("initializes the delayedConsumers", func(t *testing.T) {
+		assert.NoError(t, eo.Start())
+
+		assert.Equal(t, 5, len(eo.delayedConsumers))
 	})
 }
 
 func TestEventOctopus_Shutdown(t *testing.T) {
-	t.Run("Terminating zmqCtx does not give errors for default values", func(t *testing.T) {
+	t.Run("Terminating does not give errors for default values", func(t *testing.T) {
 		eo := testEventOctopus()
 		_ = eo.configure()
 		_ = eo.Shutdown()
@@ -67,19 +80,21 @@ func TestEventOctopus_Shutdown(t *testing.T) {
 	})
 }
 
-var event = Event{
-	RetryCount:           0,
-	Payload:              "test",
-	Name:                 EventConsentRequestConstructed,
-	ExternalID:           "e_id",
-	ConsentID:            uuid.NewV4().String(),
-	InitiatorLegalEntity: "urn:nuts:entity:test",
+func event() Event {
+	return Event{
+		RetryCount:           0,
+		Payload:              "test",
+		Name:                 EventConsentRequestConstructed,
+		ExternalID:           "e_id",
+		ConsentID:            uuid.NewV4().String(),
+		InitiatorLegalEntity: "urn:nuts:entity:test",
+	}
 }
 
 func TestEventOctopus_EventPersisted(t *testing.T) {
 	i := testEventOctopus()
 	defer i.Shutdown()
-	i.Config.Connectionstring = "file::memory:?cache=shared"
+	i.Config.Connectionstring = "file::memory:?cache=shared&_busy_timeout=2500"
 	i.configure()
 	if err := i.Start(); err != nil {
 		fmt.Printf("%v\n", err)
@@ -92,9 +107,9 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 	t.Run("a published event is persisted in db", func(t *testing.T) {
 		stanClient := stanConnection()
 		defer stanClient.Close()
-		defer emptyTable(i)
+		emptyTable(i)
 
-		e := event
+		e := event()
 		u := uuid.NewV4().String()
 		e.UUID = u
 
@@ -105,22 +120,42 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 
 		evts, err := i.List()
-		if err != nil {
-			t.Error("Expected no error", err)
+		if assert.Nil(t, err) {
+			assert.Equal(t, 1, len(*evts))
 		}
-		if len(*evts) != 1 {
-			t.Errorf("Expected 1 event in DB, found %d", len(*evts))
+	})
+
+	t.Run("an incorrect event is persisted in db as errored", func(t *testing.T) {
+		stanClient := stanConnection()
+		defer stanClient.Close()
+		emptyTable(i)
+
+		e := event()
+		u := uuid.NewV4().String()
+		e.UUID = u
+
+		je := []byte("{")
+
+		_ = stanClient.Publish(ChannelConsentRequest, je)
+
+		time.Sleep(500 * time.Millisecond)
+
+		evts, err := i.List()
+
+		if assert.Nil(t, err) {
+			assert.Equal(t, 1, len(*evts))
+			assert.Equal(t, EventErrored, (*evts)[0].Name)
 		}
 	})
 
 	t.Run("a published event is updated in db", func(t *testing.T) {
 		sc := stanConnection()
 		defer sc.Close()
-		defer emptyTable(i)
+		emptyTable(i)
 
 		u := uuid.NewV4().String()
 
-		e := event
+		e := event()
 		e.UUID = u
 
 		je, _ := json.Marshal(e)
@@ -133,12 +168,32 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
-		evts, _ := i.List()
-		if len(*evts) != 1 {
-			t.Fatalf("Expected to have received exactly 1 event, got %v", len(*evts))
+		evts, err := i.List()
+		if assert.Nil(t, err) {
+			assert.Equal(t, 1, len(*evts))
+			assert.Equal(t, EventConsentRequestInFlight, (*evts)[0].Name)
 		}
-		if (*evts)[0].Name != EventConsentRequestInFlight {
-			t.Errorf("Expected event to have name %s, found %s", EventConsentRequestInFlight, (*evts)[0].Name)
+	})
+
+	t.Run("a published error event is stored in db", func(t *testing.T) {
+		sc := stanConnection()
+		defer sc.Close()
+		emptyTable(i)
+
+		u := uuid.NewV4().String()
+
+		e := event()
+		e.UUID = u
+		e.Name = EventErrored
+
+		je, _ := json.Marshal(e)
+		_ = sc.Publish(ChannelConsentErrored, je)
+
+		time.Sleep(100 * time.Millisecond)
+
+		evt, err := i.GetEvent(u)
+		if assert.NoError(t, err) {
+			assert.NotNil(t, evt)
 		}
 	})
 }
@@ -167,7 +222,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 		_ = i.Subscribe("event-logic",
 			"EventRequestEvents",
 			map[string]EventHandlerCallback{
-				event.Name: func(event *Event) {
+				event().Name: func(event *Event) {
 					wg.Done()
 				},
 			})
@@ -181,14 +236,50 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 			notify <- true
 		}()
 
-		_ = publisher.Publish("EventRequestEvents", event)
+		_ = publisher.Publish("EventRequestEvents", event())
 
 		select {
-			case <-notify:called = true
-			case <-time.After(10 * time.Millisecond):
+		case <-notify:
+			called = true
+		case <-time.After(10 * time.Millisecond):
 		}
 
 		assert.True(t, called)
+	})
+
+	t.Run("unknown event is ignored", func(t *testing.T) {
+		i := testEventOctopus()
+		i.configure()
+		i.Start()
+		defer i.Shutdown()
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+
+		_ = i.Subscribe("event-logic",
+			"EventRequestEvents",
+			map[string]EventHandlerCallback{
+				"other event": func(event *Event) {
+					wg.Done()
+				},
+			})
+
+		publisher, _ := i.EventPublisher("event-octopus-test")
+
+		notify := make(chan bool)
+
+		go func() {
+			wg.Wait()
+			notify <- true
+		}()
+
+		_ = publisher.Publish("EventRequestEvents", event())
+
+		select {
+		case <-notify:
+			assert.Fail(t, "did not expect event to be handled")
+		case <-time.After(10 * time.Millisecond):
+		}
 	})
 
 	t.Run("adding handlers for the same service and subject should merge the handlers", func(t *testing.T) {
@@ -231,7 +322,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 
 	t.Run("two subscriptions for the same service should result in one connection", func(t *testing.T) {
 		i := testEventOctopus()
-		_ = i.nats() // use nats() instead of Start() so there will not be a service for the event-store
+		_ = i.startStanServer() // use startStanServer() instead of Start() so there will not be a service for the event-store
 		defer i.Shutdown()
 
 		if len(i.stanClients) != 0 {
@@ -241,7 +332,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 		_ = i.Subscribe("event-logic",
 			"EventRequestEvents",
 			map[string]EventHandlerCallback{
-				event.Name: func(event *Event) {},
+				event().Name: func(event *Event) {},
 			})
 
 		if len(i.stanClients) != 1 {
@@ -271,16 +362,105 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 	})
 }
 
+func TestEventOctopus_Retry(t *testing.T) {
+	i := testEventOctopus()
+	_ = i.Configure()
+	_ = i.Start()
+	defer i.Shutdown()
+
+	t.Run("event published to retry channel is picked up and republished to channel", func(t *testing.T) {
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+
+		uuid := uuid.NewV4().String()
+
+		// the event
+		var event = Event{
+			RetryCount:           0,
+			Payload:              "test",
+			Name:                 EventConsentRequestConstructed,
+			ExternalID:           "e_id",
+			UUID:                 uuid,
+			InitiatorLegalEntity: "urn:nuts:entity:test",
+		}
+		var receivedEvent *Event
+
+		// subscription for waiting
+		i.Subscribe(
+			"test",
+			ChannelConsentRequest,
+			map[string]EventHandlerCallback{
+				EventConsentRequestConstructed: func(event *Event) {
+					receivedEvent = event
+					wg.Done()
+				},
+			},
+		)
+
+		if err := i.publishEventToChannel(event, ChannelConsentRetry); err != nil {
+			t.Fatal(err)
+		}
+
+		wg.Wait()
+
+		assert.Equal(t, uuid, receivedEvent.UUID)
+		assert.Equal(t, int32(1), receivedEvent.RetryCount)
+	})
+
+	t.Run("event published to retry channel with max retry count is persisted as error", func(t *testing.T) {
+		defer emptyTable(i)
+
+		var e1 = Event{
+			RetryCount:           ConfigMaxRetryCountDefault,
+			Payload:              "test",
+			Name:                 EventConsentRequestConstructed,
+			ExternalID:           "e_id",
+			UUID:                 uuid.NewV4().String(),
+			InitiatorLegalEntity: "urn:nuts:entity:test",
+		}
+
+		if err := i.publishEventToChannel(e1, ChannelConsentRetry); err != nil {
+			t.Fatal(err)
+		}
+
+		var e *Event
+		poller := make(chan *Event)
+
+		go func() {
+			for {
+				e, _ := i.GetEvent(e1.UUID)
+				if e != nil {
+					poller <- e
+					return
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		}()
+
+		select {
+		case e = <-poller:
+		case <-time.After(50 * time.Millisecond):
+		}
+
+		if assert.NotNil(t, e) {
+			assert.Equal(t, EventErrored, e.Name, e.String())
+			if assert.NotNil(t, e.Error, e.String()) {
+				assert.Equal(t, "max retry count reached", *e.Error)
+			}
+		}
+	})
+}
+
 func emptyTable(eo *EventOctopus) {
 	event := &Event{}
-	defer eo.Db.Delete(&event)
+	eo.Db.Delete(&event)
 }
 
 func stanConnection() natsClient.Conn {
 	sc, err := natsClient.Connect(
 		"nuts",
 		"event-octopus-test",
-		natsClient.NatsURL("nats://localhost:4222"),
+		natsClient.NatsURL("startStanServer://localhost:4222"),
 	)
 
 	if err != nil {
@@ -294,9 +474,11 @@ func testEventOctopus() *EventOctopus {
 	return &EventOctopus{
 		Name: Name,
 		Config: EventOctopusConfig{
-			RetryInterval:    ConfigRetryIntervalDefault,
-			NatsPort:         ConfigNatsPortDefault,
-			Connectionstring: ConfigConnectionStringDefault,
+			RetryInterval:      ConfigRetryIntervalDefault,
+			NatsPort:           ConfigNatsPortDefault,
+			Connectionstring:   ConfigConnectionStringDefault,
+			MaxRetryCount:      ConfigMaxRetryCountDefault,
+			IncrementalBackoff: ConfigIncrementalBackoffDefault,
 		},
 		channelHandlers: make(map[string]map[string]ChannelHandlers),
 		stanClients:     make(map[string]natsClient.Conn),
@@ -305,7 +487,7 @@ func testEventOctopus() *EventOctopus {
 
 func TestEventOctopus_Unsubscribe(t *testing.T) {
 	i := testEventOctopus()
-	i.nats() // use nats() instead of Start() so there will not be a service for the event-store
+	i.startStanServer() // use startStanServer() instead of Start() so there will not be a service for the event-store
 	defer i.Shutdown()
 
 	t.Run("Subscribe and unsubscribe count", func(t *testing.T) {
@@ -332,6 +514,15 @@ func TestEventOctopus_Unsubscribe(t *testing.T) {
 		assert.NotNil(t, err)
 	})
 
+	t.Run("return error when subscription has been removed in lower level logic", func(t *testing.T) {
+		i.Subscribe("service", "subject", map[string]EventHandlerCallback{"foo": func(event *Event) {}, "bar": func(event *Event) {}})
+
+		// remove at stan level
+		if assert.NoError(t, i.channelHandlers["service"]["subject"].subscription.Unsubscribe()) {
+			assert.Error(t, i.Unsubscribe("service", "subject"))
+		}
+	})
+
 }
 
 func TestEventOctopus_GetEvent(t *testing.T) {
@@ -346,7 +537,7 @@ func TestEventOctopus_GetEvent(t *testing.T) {
 		Name:       EventConsentDistributed,
 		UUID:       uuid.NewV4().String(),
 	}
-	i.SaveOrUpdate(e)
+	i.SaveOrUpdateEvent(e)
 
 	t.Run("event found", func(t *testing.T) {
 		ep, err := i.GetEvent(e.UUID)
@@ -367,15 +558,15 @@ func TestEventOctopus_recover(t *testing.T) {
 		i := testEventOctopus()
 		i.configure()
 		i.Start()
-		defer i.Shutdown()
 
 		sc := stanConnection()
 		defer sc.Close()
+		defer i.Shutdown()
 
 		event := &Event{}
 
 		// store new event
-		i.SaveOrUpdate(Event{
+		i.SaveOrUpdateEvent(Event{
 			ExternalID: "2",
 			Name:       EventConsentDistributed,
 			UUID:       uuid.NewV4().String(),
@@ -402,6 +593,9 @@ func TestEventOctopus_recover(t *testing.T) {
 		if event.ExternalID != "2" {
 			t.Error("Expected to receive event with externalId 2")
 		}
+
+		// otherwise ack happens when disconnecting
+		time.Sleep(10 * time.Millisecond)
 	})
 
 }
@@ -414,13 +608,13 @@ func TestEventOctopus_purgeCompleted(t *testing.T) {
 		defer i.Shutdown()
 
 		// store new events
-		i.SaveOrUpdate(Event{
+		i.SaveOrUpdateEvent(Event{
 			ExternalID: "1",
 			Name:       EventCompleted,
 			UUID:       uuid.NewV4().String(),
 		})
 
-		i.SaveOrUpdate(Event{
+		i.SaveOrUpdateEvent(Event{
 			ExternalID: "2",
 			Name:       EventConsentDistributed,
 			UUID:       uuid.NewV4().String(),

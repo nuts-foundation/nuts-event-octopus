@@ -125,21 +125,33 @@ Channels and queues
 ===================
 
 Most messaging/queueing technologies share the notion of the separation of channel and queues. Message are published to channels and stored in queues.
+All queues are durable which means they will survive a restart/crash.
 
-+----------------+-------------------+----------------+---------------------------------------------------------------------------------------------------------+
-| Channel        | Queue             | Consumer       | Description                                                                                             |
-+================+===================+================+=========================================================================================================+
-| consentRequest | eventStore        | eventStore     | The event store processes all events and stores the current state in a db                               |
-|                +-------------------+----------------+---------------------------------------------------------------------------------------------------------+
-|                | consentLogic      | consentLogic   | The validation module only processes new events and checks if they are correct                          |
-|                +-------------------+----------------+---------------------------------------------------------------------------------------------------------+
-|                | consentBridge     | consentBridge  | The bridge listens to events that are ready to send to Corda                                            |
-|                +-------------------+----------------+---------------------------------------------------------------------------------------------------------+
-|                | consentStore      | consentStore   | The consent store handles events that are finalized and can be stored in a persistent data store        |
-+----------------+-------------------+----------------+---------------------------------------------------------------------------------------------------------+
-| retryX         | retryX            | eventOctopus   | Where X is the retryCount. Events are picked up and the service sleeps untill the event can be          |
-|                |                   |                | re-published                                                                                            |
-+----------------+-------------------+----------------+---------------------------------------------------------------------------------------------------------+
+| Channel               | Queue                  | Consumer       | Description                                                                                             |
++=======================+========================+================+=========================================================================================================+
+| consentRequest        | consentRequest         | eventStore     | The event store processes all events and stores the current state in a db                               |
+|                       +------------------------+----------------+---------------------------------------------------------------------------------------------------------+
+|                       | consentRequest         | consentLogic   | The validation module only processes new events and checks if they are correct                          |
+|                       +------------------------+----------------+---------------------------------------------------------------------------------------------------------+
+|                       | consentRequest         | consentBridge  | The bridge listens to events that are ready to send to Corda                                            |
+|                       +------------------------+----------------+---------------------------------------------------------------------------------------------------------+
+|                       | consentRequest         | consentStore   | The consent store handles events that are finalized and can be stored in a persistent data store        |
++-----------------------+------------------------+----------------+---------------------------------------------------------------------------------------------------------+
+| consentRequestRetry   | consentRequestRetry    | eventOctopus   | General retry queue where events to be retried are sorted                                               |
++-----------------------+------------------------+----------------+---------------------------------------------------------------------------------------------------------+
+| consentRequestRetry-X | consentRequestRetry-X  | eventOctopus   | Where X is the retryCount. Events are picked up and the service sleeps untill the event can be          |
+|                       |                        |                | re-published to the consentRequest channel                                                              |
++-----------------------+------------------------+----------------+---------------------------------------------------------------------------------------------------------+
+
+Retry mechanism
+===============
+
+Some errors may be caused by timeouts or poorly working infrastructure. To remedy this, events can be retried. Events that should be retried must be published to the `consentRequestRetry` channel.
+The *eventOctopus* will sort the event to a different queue based on the `retryCount` (or save it as an error if the max count has been reached).
+Events that are picked up by the different retry queues will remain there until the timeout has been reached (by means of delay acking the message).
+The different queues have a different waiting time till the events are republished to the main channel. This can be configured by the `maxRetryCount` and `incrementalBackoff` config variables.
+The `incrementalBackoff` multiplies the waiting time of the previous queue.
+The default settings of 5 retries and an incremental backoff of 8 means that the waiting times for the different queues are: 1s, 8s, 64s, 512s, 4096s or 1s, 8s, ~1m, ~8m, ~1:08h.
 
 Implementation
 ==============

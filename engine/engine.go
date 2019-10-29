@@ -50,8 +50,10 @@ func flagSet() *pflag.FlagSet {
 	flags.Int(pkg.ConfigRetryInterval, pkg.ConfigRetryIntervalDefault, "Retry delay in seconds for reconnecting")
 	flags.Int(pkg.ConfigNatsPort, pkg.ConfigNatsPortDefault, "Port for Nats to bind on")
 	flags.String(pkg.ConfigConnectionstring, pkg.ConfigConnectionStringDefault, "db connection string for event store")
-	flags.Bool(pkg.ConfigAutoRecover, true, "Republish unfinished events at startup")
-	flags.Bool(pkg.ConfigPurgeCompleted, true, "Purge completed events at startup")
+	flags.Bool(pkg.ConfigAutoRecover, false, "Republish unfinished events at startup")
+	flags.Bool(pkg.ConfigPurgeCompleted, false, "Purge completed events at startup")
+	flags.Int(pkg.ConfigMaxRetryCount, pkg.ConfigMaxRetryCountDefault, "Max number of retries for events before giving up (only for recoverable errors")
+	flags.Int(pkg.ConfigIncrementalBackoff, pkg.ConfigIncrementalBackoffDefault, "Incremental backoff per retry queue, queue 0 retries after 1 second, queue 1 after {incrementalBackoff} * {previousDelay}")
 
 	return flags
 }

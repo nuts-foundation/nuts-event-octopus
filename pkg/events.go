@@ -30,9 +30,11 @@ import (
 	"github.com/nats-io/nats-streaming-server/stores"
 	natsClient "github.com/nats-io/stan.go"
 	"github.com/nuts-foundation/nuts-event-octopus/migrations"
+	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 	"strings"
 	"sync"
+	"time"
 )
 
 // ConfigRetryInterval defines the string for the flagset
@@ -44,10 +46,10 @@ const ConfigNatsPort = "natsPort"
 // ConfigConnectionstring defines the string for the flagset
 const ConfigConnectionstring = "connectionstring"
 
-// ConfigRetryIntervalDefault defines the default for the nats retryInterval
+// ConfigRetryIntervalDefault defines the default for the startStanServer retryInterval
 const ConfigRetryIntervalDefault = 60
 
-// ConfigNatsPortDefault defines the default nats port
+// ConfigNatsPortDefault defines the default startStanServer port
 const ConfigNatsPortDefault = 4222
 
 // ConfigConnectionStringDefault defines the default sqlite connection string
@@ -59,16 +61,33 @@ const ConfigAutoRecover = "autoRecover"
 // ConfigPurgeCompleted is the config name for enabling purging completed events
 const ConfigPurgeCompleted = "purgeCompleted"
 
+// ConfigMaxRetryCount is the config name for the number of retries for an event
+const ConfigMaxRetryCount = "maxRetryCount"
+
+// ConfigMaxRetryCountDefault is the default setting for the number of retries
+const ConfigMaxRetryCountDefault = 5
+
+// ConfigIncrementalBackoff is the name of the config used to determine the incremental backoff
+const ConfigIncrementalBackoff = "incrementalBackoff"
+
+// ConfigIncrementalBackoffDefault is the default setting for the incremental backoff of retrying events
+const ConfigIncrementalBackoffDefault = 8
+
 // Name is the name of this module
 const Name = "Events octopus"
 
+// ClientID is the Nats client ID
+const ClientID = "event-store"
+
 // EventOctopusConfig holds the config for the EventOctopusInstance
 type EventOctopusConfig struct {
-	RetryInterval    int
-	NatsPort         int
-	Connectionstring string
-	AutoRecover      bool
-	PurgeCompleted   bool
+	RetryInterval      int
+	NatsPort           int
+	Connectionstring   string
+	AutoRecover        bool
+	PurgeCompleted     bool
+	MaxRetryCount      int
+	IncrementalBackoff int
 }
 
 // IEventPublisher defines the Publish signature so it can be mocked or implemented for another tech
@@ -99,10 +118,13 @@ type EventOctopus struct {
 	// Clients per service
 	stanClients     map[string]natsClient.Conn
 	channelHandlers map[string]map[string]ChannelHandlers
+	// Retry
+	delayedConsumers []*DelayedConsumer
 }
 
 var instance *EventOctopus
 var oneInstance = &sync.Once{}
+var mutex = sync.Mutex{}
 
 // EventOctopusInstance returns the EventOctopus singleton
 func EventOctopusInstance() *EventOctopus {
@@ -110,9 +132,11 @@ func EventOctopusInstance() *EventOctopus {
 		instance = &EventOctopus{
 			Name: Name,
 			Config: EventOctopusConfig{
-				RetryInterval:    ConfigRetryIntervalDefault,
-				NatsPort:         ConfigNatsPortDefault,
-				Connectionstring: ConfigConnectionStringDefault,
+				RetryInterval:      ConfigRetryIntervalDefault,
+				NatsPort:           ConfigNatsPortDefault,
+				Connectionstring:   ConfigConnectionStringDefault,
+				MaxRetryCount:      ConfigMaxRetryCountDefault,
+				IncrementalBackoff: ConfigIncrementalBackoffDefault,
 			},
 			channelHandlers: make(map[string]map[string]ChannelHandlers),
 			stanClients:     make(map[string]natsClient.Conn),
@@ -129,7 +153,7 @@ func (octopus *EventOctopus) Subscribe(service, subject string, handlers map[str
 		channelHandlers := ChannelHandlers{
 			handlers: handlers,
 		}
-		stanClient, err := octopus.Client(service)
+		stanClient, err := octopus.client(service)
 		if err != nil {
 			return err
 		}
@@ -259,7 +283,7 @@ func (octopus *EventOctopus) RunMigrations(db *sql.DB) error {
 	return nil
 }
 
-func (octopus *EventOctopus) nats() error {
+func (octopus *EventOctopus) startStanServer() error {
 	opts := natsServer.GetDefaultOptions()
 	opts.Debug = false
 	opts.Trace = false
@@ -298,12 +322,12 @@ func (octopus *EventOctopus) Start() error {
 	octopus.Db.SetLogger(logrus.StandardLogger())
 
 	// natsServer startup
-	if err = octopus.nats(); err != nil {
+	if err = octopus.startStanServer(); err != nil {
 		return err
 	}
 
 	// event store client
-	if err = octopus.eventStoreClient(); err != nil {
+	if err = octopus.startSubscribers(); err != nil {
 		return err
 	}
 
@@ -322,8 +346,8 @@ func (octopus *EventOctopus) Start() error {
 	return nil
 }
 
-// Client gets an existing or creates a new natsClient
-func (octopus *EventOctopus) Client(clientID string) (natsClient.Conn, error) {
+// client gets an existing or creates a new natsClient
+func (octopus *EventOctopus) client(clientID string) (natsClient.Conn, error) {
 	if client, ok := octopus.stanClients[clientID]; ok {
 		return client, nil
 	}
@@ -331,7 +355,7 @@ func (octopus *EventOctopus) Client(clientID string) (natsClient.Conn, error) {
 	client, err := natsClient.Connect(
 		"nuts",
 		clientID,
-		natsClient.NatsURL(fmt.Sprintf("nats://localhost:%d", octopus.Config.NatsPort)),
+		natsClient.NatsURL(fmt.Sprintf("startStanServer://localhost:%d", octopus.Config.NatsPort)),
 	)
 	if err == nil {
 		octopus.stanClients[clientID] = client
@@ -355,45 +379,164 @@ func (p EventPublisher) Publish(subject string, event Event) error {
 
 // EventPublisher gets a connection and creates a new EventPublisher
 func (octopus *EventOctopus) EventPublisher(clientID string) (IEventPublisher, error) {
-	conn, err := octopus.Client(clientID)
+	conn, err := octopus.client(clientID)
 	if err != nil {
 		return nil, err
 	}
 	return &EventPublisher{conn: conn}, nil
 }
 
-func (octopus *EventOctopus) eventStoreClient() error {
-	logrus.Tracef("Connecting to Stan-Streaming server @ nats://localhost:%d", octopus.Config.NatsPort)
+func (octopus *EventOctopus) startSubscribers() error {
+	logrus.Tracef("Connecting to Stan-Streaming server @ startStanServer://localhost:%d", octopus.Config.NatsPort)
 
-	sc, err := octopus.Client("event-store")
+	sc, err := octopus.client(ClientID)
 	if err != nil {
 		return err
 	}
-	// Subscribe with manual ack mode
-	// todo store Subscription?
+	// Subscribe to main subject
 	_, err = sc.Subscribe(ChannelConsentRequest, func(msg *natsClient.Msg) {
+		event := octopus.saveMsgAsEvent(msg.Data)
+
+		// Handle the message
+		logrus.Debugf("received event [%d]: %+v\n", msg.Sequence, event)
+	}, natsClient.DurableName("consent-request-durable"),
+		natsClient.StartWithLastReceived(),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Subscribe to error subject
+	_, err = sc.Subscribe(ChannelConsentErrored, func(msg *natsClient.Msg) {
+		event := octopus.saveMsgAsEvent(msg.Data)
+
+		// Handle the message
+		logrus.Debugf("received error event [%d]: %+v\n", msg.Sequence, event)
+	}, natsClient.DurableName("consent-request-error-durable"),
+		natsClient.StartWithLastReceived(),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Subscribe to retry subject
+	_, err = sc.Subscribe(ChannelConsentRetry, func(msg *natsClient.Msg) {
 		event := Event{}
-		// Unmarshal JSON that represents the Order data
+
 		err := json.Unmarshal(msg.Data, &event)
 		if err != nil {
-			logrus.Errorf("Error unmarshalling event: %w", err)
+			logrus.WithError(err).Errorf("Error unmarshalling event")
+			octopus.saveMsgAsErrored(msg.Data, err.Error())
+
 			return
 		}
-		// Handle the message
-		logrus.Debugf("Received event [%d]: %+v\n", msg.Sequence, event)
 
-		if err := octopus.SaveOrUpdate(event); err != nil {
-			logrus.WithError(err).Error("Failed to store event", err)
+		if event.RetryCount >= int32(octopus.Config.MaxRetryCount) {
+			event.Name = EventErrored
+			errStr := "max retry count reached"
+			event.Error = &errStr
+			octopus.SaveOrUpdateEvent(event)
+
+			return
 		}
-		_ = msg.Ack() // Manual ACK
-	}, natsClient.DurableName("consent-request-durable"),
-		natsClient.MaxInflight(1),
-		natsClient.SetManualAckMode(),
-	)
 
-	logrus.Infof("Connected to Stan-Streaming server @ nats://localhost:%d", octopus.Config.NatsPort)
+		if err := octopus.publishEventToRetryChannel(event); err != nil {
+			logrus.WithError(err).Fatal("failed to publish message to retry channel")
+		}
+
+		logrus.Debugf("received retry event [%d]: %+v\n", msg.Sequence, event)
+	}, natsClient.DurableName("consent-request-retry-durable"),
+		natsClient.StartWithLastReceived(),
+	)
+	if err != nil {
+		return err
+	}
+
+	// subscribe retry channels
+	octopus.delayedConsumers = NewDelayedConsumerSet(ChannelConsentRetry, ChannelConsentRequest, octopus.Config.MaxRetryCount, time.Second, octopus.Config.IncrementalBackoff, sc)
+	for _, dc := range octopus.delayedConsumers {
+		if err := dc.Start(); err != nil {
+			return err
+		}
+	}
+
+	logrus.Infof("Connected to Stan-Streaming server @ startStanServer://localhost:%d", octopus.Config.NatsPort)
 
 	return err
+}
+
+func (octopus *EventOctopus) publishEventToRetryChannel(event Event) error {
+	conn, err := octopus.client(ClientID)
+	if err != nil {
+		return err
+	}
+
+	channel := fmt.Sprintf("%s-%d", ChannelConsentRetry, event.RetryCount)
+	event.RetryCount++
+
+	eventBytes, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+
+	// publish async otherwise we'll be waiting for the retry procedure to ack
+	_, err = conn.PublishAsync(channel, eventBytes, func(s string, e error) {
+		if e != nil {
+			logrus.WithError(err).Error("did not recieve ack for message published to retry queue")
+		}
+	})
+
+	return err
+}
+
+func (octopus *EventOctopus) publishEventToChannel(event Event, channel string) error {
+	conn, err := octopus.client(ClientID)
+	if err != nil {
+		return err
+	}
+
+	eventBytes, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+
+	// publish async otherwise we'll be waiting for the retry procedure to ack
+	return conn.Publish(channel, eventBytes)
+}
+
+func (octopus *EventOctopus) saveMsgAsEvent(data []byte) Event {
+	event := Event{}
+
+	err := json.Unmarshal(data, &event)
+	if err != nil {
+		logrus.WithError(err).Errorf("Error unmarshalling event")
+		return octopus.saveMsgAsErrored(data, err.Error())
+	}
+
+	if err := octopus.SaveOrUpdateEvent(event); err != nil {
+		logrus.WithError(err).Fatal("could not store event")
+	}
+
+	return event
+}
+
+func (octopus *EventOctopus) saveMsgAsErrored(bytes []byte, msg string) Event {
+	event := Event{
+		InitiatorLegalEntity: "unknown",
+		Error:                &msg,
+		ExternalID:           "unknown",
+		Payload:              string(bytes),
+		RetryCount:           0,
+		Name:                 EventErrored,
+		UUID:                 uuid.NewV4().String(),
+	}
+
+	// go through transaction
+	if err := octopus.SaveOrUpdateEvent(event); err != nil {
+		logrus.WithError(err).Fatal("could not store errored event")
+	}
+
+	return event
 }
 
 // Shutdown closes the connection to the DB and the natsServer server
@@ -433,6 +576,10 @@ func (octopus *EventOctopus) GetEvent(uuid string) (*Event, error) {
 		return nil, nil
 	}
 
+	if err != nil {
+		return nil ,err
+	}
+
 	return event, err
 }
 
@@ -446,11 +593,20 @@ func (octopus *EventOctopus) GetEventByExternalID(externalID string) (*Event, er
 		return nil, nil
 	}
 
+	if err != nil {
+		return nil, err
+	}
+
 	return event, err
 }
 
-// SaveOrUpdate saves or update the event in the store.
-func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
+// SaveOrUpdateEvent saves or update the event in the store.
+func (octopus *EventOctopus) SaveOrUpdateEvent(event Event) error {
+
+	// sqlite is giving problems
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	// start transaction
 	tx := octopus.Db.Begin()
 	defer func() {
@@ -470,12 +626,16 @@ func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
 	// err := eo.Db.Set("gorm:query_option", "FOR UPDATE").Where("uuid = ?", event.UUID).First(&target).Error
 	err := octopus.Db.Debug().Where("uuid = ?", event.UUID).First(&target).Error
 
+	// TODO, check if event has to be overwritten!!!!
 	if err == nil || gorm.IsRecordNotFoundError(err) {
-		octopus.Db.Debug().Save(&event)
-	} else {
+		err = octopus.Db.Debug().Save(&event).Error
+	}
+
+	if err != nil {
 		tx.Rollback()
 		return err
 	}
+
 	return tx.Commit().Error
 }
 
