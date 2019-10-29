@@ -21,7 +21,7 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	natsClient "github.com/nats-io/stan.go"
+	natsClient "github.com/startStanServer-io/stan.go"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"sync"
@@ -322,7 +322,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 
 	t.Run("two subscriptions for the same service should result in one connection", func(t *testing.T) {
 		i := testEventOctopus()
-		_ = i.nats() // use nats() instead of Start() so there will not be a service for the event-store
+		_ = i.startStanServer() // use startStanServer() instead of Start() so there will not be a service for the event-store
 		defer i.Shutdown()
 
 		if len(i.stanClients) != 0 {
@@ -460,7 +460,7 @@ func stanConnection() natsClient.Conn {
 	sc, err := natsClient.Connect(
 		"nuts",
 		"event-octopus-test",
-		natsClient.NatsURL("nats://localhost:4222"),
+		natsClient.NatsURL("startStanServer://localhost:4222"),
 	)
 
 	if err != nil {
@@ -487,7 +487,7 @@ func testEventOctopus() *EventOctopus {
 
 func TestEventOctopus_Unsubscribe(t *testing.T) {
 	i := testEventOctopus()
-	i.nats() // use nats() instead of Start() so there will not be a service for the event-store
+	i.startStanServer() // use startStanServer() instead of Start() so there will not be a service for the event-store
 	defer i.Shutdown()
 
 	t.Run("Subscribe and unsubscribe count", func(t *testing.T) {
@@ -537,7 +537,7 @@ func TestEventOctopus_GetEvent(t *testing.T) {
 		Name:       EventConsentDistributed,
 		UUID:       uuid.NewV4().String(),
 	}
-	i.SaveOrUpdate(e)
+	i.SaveOrUpdateEvent(e)
 
 	t.Run("event found", func(t *testing.T) {
 		ep, err := i.GetEvent(e.UUID)
@@ -566,7 +566,7 @@ func TestEventOctopus_recover(t *testing.T) {
 		event := &Event{}
 
 		// store new event
-		i.SaveOrUpdate(Event{
+		i.SaveOrUpdateEvent(Event{
 			ExternalID: "2",
 			Name:       EventConsentDistributed,
 			UUID:       uuid.NewV4().String(),
@@ -608,13 +608,13 @@ func TestEventOctopus_purgeCompleted(t *testing.T) {
 		defer i.Shutdown()
 
 		// store new events
-		i.SaveOrUpdate(Event{
+		i.SaveOrUpdateEvent(Event{
 			ExternalID: "1",
 			Name:       EventCompleted,
 			UUID:       uuid.NewV4().String(),
 		})
 
-		i.SaveOrUpdate(Event{
+		i.SaveOrUpdateEvent(Event{
 			ExternalID: "2",
 			Name:       EventConsentDistributed,
 			UUID:       uuid.NewV4().String(),

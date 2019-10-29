@@ -27,7 +27,7 @@ import (
 
 func TestDelayedConsumer(t *testing.T) {
 	i := testEventOctopus()
-	_ = i.nats()
+	_ = i.startStanServer()
 	defer i.Shutdown()
 
 	t.Run("delayed event is received on correct publish channel", func(t *testing.T) {
@@ -61,7 +61,7 @@ func TestDelayedConsumer(t *testing.T) {
 
 func TestDelayedConsumer_Stop(t *testing.T) {
 	i := testEventOctopus()
-	_ = i.nats()
+	_ = i.startStanServer()
 	defer i.Shutdown()
 
 	t.Run("stop closes the subscription", func(t *testing.T) {
@@ -112,7 +112,7 @@ func conn(id string) stan.Conn {
 	sc, err := stan.Connect(
 		"nuts",
 		id,
-		stan.NatsURL("nats://localhost:4222"),
+		stan.NatsURL("startStanServer://localhost:4222"),
 	)
 
 	if err != nil {

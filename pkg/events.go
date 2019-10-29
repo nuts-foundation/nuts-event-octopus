@@ -46,10 +46,10 @@ const ConfigNatsPort = "natsPort"
 // ConfigConnectionstring defines the string for the flagset
 const ConfigConnectionstring = "connectionstring"
 
-// ConfigRetryIntervalDefault defines the default for the nats retryInterval
+// ConfigRetryIntervalDefault defines the default for the startStanServer retryInterval
 const ConfigRetryIntervalDefault = 60
 
-// ConfigNatsPortDefault defines the default nats port
+// ConfigNatsPortDefault defines the default startStanServer port
 const ConfigNatsPortDefault = 4222
 
 // ConfigConnectionStringDefault defines the default sqlite connection string
@@ -153,7 +153,7 @@ func (octopus *EventOctopus) Subscribe(service, subject string, handlers map[str
 		channelHandlers := ChannelHandlers{
 			handlers: handlers,
 		}
-		stanClient, err := octopus.Client(service)
+		stanClient, err := octopus.client(service)
 		if err != nil {
 			return err
 		}
@@ -283,7 +283,7 @@ func (octopus *EventOctopus) RunMigrations(db *sql.DB) error {
 	return nil
 }
 
-func (octopus *EventOctopus) nats() error {
+func (octopus *EventOctopus) startStanServer() error {
 	opts := natsServer.GetDefaultOptions()
 	opts.Debug = false
 	opts.Trace = false
@@ -322,7 +322,7 @@ func (octopus *EventOctopus) Start() error {
 	octopus.Db.SetLogger(logrus.StandardLogger())
 
 	// natsServer startup
-	if err = octopus.nats(); err != nil {
+	if err = octopus.startStanServer(); err != nil {
 		return err
 	}
 
@@ -346,8 +346,8 @@ func (octopus *EventOctopus) Start() error {
 	return nil
 }
 
-// Client gets an existing or creates a new natsClient
-func (octopus *EventOctopus) Client(clientID string) (natsClient.Conn, error) {
+// client gets an existing or creates a new natsClient
+func (octopus *EventOctopus) client(clientID string) (natsClient.Conn, error) {
 	if client, ok := octopus.stanClients[clientID]; ok {
 		return client, nil
 	}
@@ -355,7 +355,7 @@ func (octopus *EventOctopus) Client(clientID string) (natsClient.Conn, error) {
 	client, err := natsClient.Connect(
 		"nuts",
 		clientID,
-		natsClient.NatsURL(fmt.Sprintf("nats://localhost:%d", octopus.Config.NatsPort)),
+		natsClient.NatsURL(fmt.Sprintf("startStanServer://localhost:%d", octopus.Config.NatsPort)),
 	)
 	if err == nil {
 		octopus.stanClients[clientID] = client
@@ -379,7 +379,7 @@ func (p EventPublisher) Publish(subject string, event Event) error {
 
 // EventPublisher gets a connection and creates a new EventPublisher
 func (octopus *EventOctopus) EventPublisher(clientID string) (IEventPublisher, error) {
-	conn, err := octopus.Client(clientID)
+	conn, err := octopus.client(clientID)
 	if err != nil {
 		return nil, err
 	}
@@ -387,15 +387,15 @@ func (octopus *EventOctopus) EventPublisher(clientID string) (IEventPublisher, e
 }
 
 func (octopus *EventOctopus) startSubscribers() error {
-	logrus.Tracef("Connecting to Stan-Streaming server @ nats://localhost:%d", octopus.Config.NatsPort)
+	logrus.Tracef("Connecting to Stan-Streaming server @ startStanServer://localhost:%d", octopus.Config.NatsPort)
 
-	sc, err := octopus.Client(ClientID)
+	sc, err := octopus.client(ClientID)
 	if err != nil {
 		return err
 	}
 	// Subscribe to main subject
 	_, err = sc.Subscribe(ChannelConsentRequest, func(msg *natsClient.Msg) {
-		event := octopus.storeEvent(msg.Data)
+		event := octopus.saveMsgAsEvent(msg.Data)
 
 		// Handle the message
 		logrus.Debugf("received event [%d]: %+v\n", msg.Sequence, event)
@@ -408,7 +408,7 @@ func (octopus *EventOctopus) startSubscribers() error {
 
 	// Subscribe to error subject
 	_, err = sc.Subscribe(ChannelConsentErrored, func(msg *natsClient.Msg) {
-		event := octopus.storeEvent(msg.Data)
+		event := octopus.saveMsgAsEvent(msg.Data)
 
 		// Handle the message
 		logrus.Debugf("received error event [%d]: %+v\n", msg.Sequence, event)
@@ -426,7 +426,7 @@ func (octopus *EventOctopus) startSubscribers() error {
 		err := json.Unmarshal(msg.Data, &event)
 		if err != nil {
 			logrus.WithError(err).Errorf("Error unmarshalling event")
-			octopus.saveAsErrored(msg.Data, err.Error())
+			octopus.saveMsgAsErrored(msg.Data, err.Error())
 
 			return
 		}
@@ -435,7 +435,7 @@ func (octopus *EventOctopus) startSubscribers() error {
 			event.Name = EventErrored
 			errStr := "max retry count reached"
 			event.Error = &errStr
-			octopus.SaveOrUpdate(event)
+			octopus.SaveOrUpdateEvent(event)
 
 			return
 		}
@@ -460,13 +460,13 @@ func (octopus *EventOctopus) startSubscribers() error {
 		}
 	}
 
-	logrus.Infof("Connected to Stan-Streaming server @ nats://localhost:%d", octopus.Config.NatsPort)
+	logrus.Infof("Connected to Stan-Streaming server @ startStanServer://localhost:%d", octopus.Config.NatsPort)
 
 	return err
 }
 
 func (octopus *EventOctopus) publishEventToRetryChannel(event Event) error {
-	conn, err := octopus.Client(ClientID)
+	conn, err := octopus.client(ClientID)
 	if err != nil {
 		return err
 	}
@@ -490,7 +490,7 @@ func (octopus *EventOctopus) publishEventToRetryChannel(event Event) error {
 }
 
 func (octopus *EventOctopus) publishEventToChannel(event Event, channel string) error {
-	conn, err := octopus.Client(ClientID)
+	conn, err := octopus.client(ClientID)
 	if err != nil {
 		return err
 	}
@@ -504,23 +504,23 @@ func (octopus *EventOctopus) publishEventToChannel(event Event, channel string) 
 	return conn.Publish(channel, eventBytes)
 }
 
-func (octopus *EventOctopus) storeEvent(data []byte) Event {
+func (octopus *EventOctopus) saveMsgAsEvent(data []byte) Event {
 	event := Event{}
 
 	err := json.Unmarshal(data, &event)
 	if err != nil {
 		logrus.WithError(err).Errorf("Error unmarshalling event")
-		return octopus.saveAsErrored(data, err.Error())
+		return octopus.saveMsgAsErrored(data, err.Error())
 	}
 
-	if err := octopus.SaveOrUpdate(event); err != nil {
+	if err := octopus.SaveOrUpdateEvent(event); err != nil {
 		logrus.WithError(err).Fatal("could not store event")
 	}
 
 	return event
 }
 
-func (octopus *EventOctopus) saveAsErrored(bytes []byte, msg string) Event {
+func (octopus *EventOctopus) saveMsgAsErrored(bytes []byte, msg string) Event {
 	event := Event{
 		InitiatorLegalEntity: "unknown",
 		Error:                &msg,
@@ -532,7 +532,7 @@ func (octopus *EventOctopus) saveAsErrored(bytes []byte, msg string) Event {
 	}
 
 	// go through transaction
-	if err := octopus.SaveOrUpdate(event); err != nil {
+	if err := octopus.SaveOrUpdateEvent(event); err != nil {
 		logrus.WithError(err).Fatal("could not store errored event")
 	}
 
@@ -600,8 +600,8 @@ func (octopus *EventOctopus) GetEventByExternalID(externalID string) (*Event, er
 	return event, err
 }
 
-// SaveOrUpdate saves or update the event in the store.
-func (octopus *EventOctopus) SaveOrUpdate(event Event) error {
+// SaveOrUpdateEvent saves or update the event in the store.
+func (octopus *EventOctopus) SaveOrUpdateEvent(event Event) error {
 
 	// sqlite is giving problems
 	mutex.Lock()
