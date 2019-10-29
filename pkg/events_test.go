@@ -80,13 +80,15 @@ func TestEventOctopus_Shutdown(t *testing.T) {
 	})
 }
 
-var event = Event{
-	RetryCount:           0,
-	Payload:              "test",
-	Name:                 EventConsentRequestConstructed,
-	ExternalID:           "e_id",
-	ConsentID:            uuid.NewV4().String(),
-	InitiatorLegalEntity: "urn:nuts:entity:test",
+func event() Event {
+	return Event{
+		RetryCount:           0,
+		Payload:              "test",
+		Name:                 EventConsentRequestConstructed,
+		ExternalID:           "e_id",
+		ConsentID:            uuid.NewV4().String(),
+		InitiatorLegalEntity: "urn:nuts:entity:test",
+	}
 }
 
 func TestEventOctopus_EventPersisted(t *testing.T) {
@@ -107,7 +109,7 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 		defer stanClient.Close()
 		emptyTable(i)
 
-		e := event
+		e := event()
 		u := uuid.NewV4().String()
 		e.UUID = u
 
@@ -128,7 +130,7 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 		defer stanClient.Close()
 		emptyTable(i)
 
-		e := event
+		e := event()
 		u := uuid.NewV4().String()
 		e.UUID = u
 
@@ -153,7 +155,7 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 
 		u := uuid.NewV4().String()
 
-		e := event
+		e := event()
 		e.UUID = u
 
 		je, _ := json.Marshal(e)
@@ -170,6 +172,28 @@ func TestEventOctopus_EventPersisted(t *testing.T) {
 		if assert.Nil(t, err) {
 			assert.Equal(t, 1, len(*evts))
 			assert.Equal(t, EventConsentRequestInFlight, (*evts)[0].Name)
+		}
+	})
+
+	t.Run("a published error event is stored in db", func(t *testing.T) {
+		sc := stanConnection()
+		defer sc.Close()
+		emptyTable(i)
+
+		u := uuid.NewV4().String()
+
+		e := event()
+		e.UUID = u
+		e.Name = EventErrored
+
+		je, _ := json.Marshal(e)
+		_ = sc.Publish(ChannelConsentErrored, je)
+
+		time.Sleep(100 * time.Millisecond)
+
+		evt, err := i.GetEvent(u)
+		if assert.NoError(t, err) {
+			assert.NotNil(t, evt)
 		}
 	})
 }
@@ -198,7 +222,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 		_ = i.Subscribe("event-logic",
 			"EventRequestEvents",
 			map[string]EventHandlerCallback{
-				event.Name: func(event *Event) {
+				event().Name: func(event *Event) {
 					wg.Done()
 				},
 			})
@@ -212,7 +236,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 			notify <- true
 		}()
 
-		_ = publisher.Publish("EventRequestEvents", event)
+		_ = publisher.Publish("EventRequestEvents", event())
 
 		select {
 		case <-notify:
@@ -249,7 +273,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 			notify <- true
 		}()
 
-		_ = publisher.Publish("EventRequestEvents", event)
+		_ = publisher.Publish("EventRequestEvents", event())
 
 		select {
 		case <-notify:
@@ -308,7 +332,7 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 		_ = i.Subscribe("event-logic",
 			"EventRequestEvents",
 			map[string]EventHandlerCallback{
-				event.Name: func(event *Event) {},
+				event().Name: func(event *Event) {},
 			})
 
 		if len(i.stanClients) != 1 {
