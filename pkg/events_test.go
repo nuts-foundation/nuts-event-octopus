@@ -21,7 +21,7 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	natsClient "github.com/startStanServer-io/stan.go"
+	natsClient "github.com/nats-io/stan.go"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"sync"
