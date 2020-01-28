@@ -21,12 +21,13 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	natsClient "github.com/nats-io/stan.go"
-	uuid "github.com/satori/go.uuid"
-	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
 	"time"
+
+	natsClient "github.com/nats-io/stan.go"
+	uuid "github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEventOctopusInstance(t *testing.T) {
@@ -523,6 +524,73 @@ func TestEventOctopus_Unsubscribe(t *testing.T) {
 		}
 	})
 
+}
+
+func TestEventOctopus_Diagnostics(t *testing.T) {
+	i := testEventOctopus()
+	i.configure()
+	i.Start()
+
+	t.Run("Diagnostics returns 2 reports", func(t *testing.T) {
+		results := i.Diagnostics()
+
+		assert.Len(t, results, 2)
+	})
+
+	t.Run("Diagnostics returns Nats info", func(t *testing.T) {
+		found := false
+		results := i.Diagnostics()
+		for _, r := range results {
+			if r.Name() == "Nats streaming server" {
+				found = true
+				assert.Equal(t, "mode: STANDALONE @ 0.0.0.0:4222, ID: nuts, last error: NONE", r.String())
+			}
+		}
+
+		assert.True(t, found)
+	})
+
+	t.Run("Diagnostics returns DB info", func(t *testing.T) {
+		found := false
+		results := i.Diagnostics()
+		for _, r := range results {
+			if r.Name() == "DB" {
+				found = true
+				assert.Equal(t, "connection string: file::memory:?cache=shared, ping: true", r.String())
+			}
+		}
+
+		assert.True(t, found)
+	})
+
+	i.Shutdown()
+	i.stanServer = nil
+
+	t.Run("Diagnostics returns correct Nats info when down", func(t *testing.T) {
+		found := false
+		results := i.Diagnostics()
+		for _, r := range results {
+			if r.Name() == "Nats streaming server" {
+				found = true
+				assert.Equal(t, "DOWN", r.String())
+			}
+		}
+
+		assert.True(t, found)
+	})
+
+	t.Run("Diagnostics returns DB info when down", func(t *testing.T) {
+		found := false
+		results := i.Diagnostics()
+		for _, r := range results {
+			if r.Name() == "DB" {
+				found = true
+				assert.Equal(t, "connection string: file::memory:?cache=shared, ping: false, error: sql: database is closed", r.String())
+			}
+		}
+
+		assert.True(t, found)
+	})
 }
 
 func TestEventOctopus_GetEvent(t *testing.T) {
