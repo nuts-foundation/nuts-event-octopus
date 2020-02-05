@@ -556,7 +556,7 @@ func TestEventOctopus_Diagnostics(t *testing.T) {
 		for _, r := range results {
 			if r.Name() == "DB" {
 				found = true
-				assert.Equal(t, "connection string: file::memory:?cache=shared, ping: true", r.String())
+				assert.Equal(t, "ping: true", r.String())
 			}
 		}
 
@@ -585,7 +585,7 @@ func TestEventOctopus_Diagnostics(t *testing.T) {
 		for _, r := range results {
 			if r.Name() == "DB" {
 				found = true
-				assert.Equal(t, "connection string: file::memory:?cache=shared, ping: false, error: sql: database is closed", r.String())
+				assert.Equal(t, "ping: false, error: sql: database is closed", r.String())
 			}
 		}
 

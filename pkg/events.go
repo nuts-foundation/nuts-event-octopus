@@ -214,8 +214,7 @@ func (octopus *EventOctopus) Unsubscribe(service, subject string) error {
 }
 
 type dbDiagnosticResult struct {
-	connectionString string
-	pingError        error
+	pingError error
 }
 
 type natsDiagnosticsResult struct {
@@ -253,10 +252,10 @@ func (ddr dbDiagnosticResult) Name() string {
 // String returns the outcome of the GenericDiagnosticResult
 func (ddr dbDiagnosticResult) String() string {
 	if ddr.pingError == nil {
-		return fmt.Sprintf("connection string: %s, ping: true", ddr.connectionString)
+		return "ping: true"
 	}
 
-	return fmt.Sprintf("connection string: %s, ping: false, error: %v", ddr.connectionString, ddr.pingError)
+	return fmt.Sprintf("ping: false, error: %v", ddr.pingError)
 }
 
 // Diagnostics returns diagnostic reports from the nats streaming service and the DB
@@ -281,8 +280,7 @@ func (octopus *EventOctopus) Diagnostics() []core.DiagnosticResult {
 	}
 
 	dbState = dbDiagnosticResult{
-		connectionString: octopus.Config.Connectionstring,
-		pingError:        octopus.sqlDb.Ping(),
+		pingError: octopus.sqlDb.Ping(),
 	}
 
 	return []core.DiagnosticResult{
