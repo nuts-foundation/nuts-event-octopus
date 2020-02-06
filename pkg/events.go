@@ -22,6 +22,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
@@ -30,11 +34,9 @@ import (
 	"github.com/nats-io/nats-streaming-server/stores"
 	natsClient "github.com/nats-io/stan.go"
 	"github.com/nuts-foundation/nuts-event-octopus/migrations"
+	core "github.com/nuts-foundation/nuts-go-core"
 	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
-	"strings"
-	"sync"
-	"time"
 )
 
 // ConfigRetryInterval defines the string for the flagset
@@ -99,6 +101,7 @@ type IEventPublisher interface {
 type EventOctopusClient interface {
 	EventPublisher(clientID string) (IEventPublisher, error)
 	Subscribe(service, subject string, callbacks map[string]EventHandlerCallback) error
+	Diagnostics() []core.DiagnosticResult
 }
 
 // ChannelHandlers store all the handlers for a specific channel subscription
@@ -208,6 +211,82 @@ func (octopus *EventOctopus) Unsubscribe(service, subject string) error {
 	}
 
 	return nil
+}
+
+type dbDiagnosticResult struct {
+	pingError error
+}
+
+type natsDiagnosticsResult struct {
+	up        bool
+	natsMode  string
+	natsPort  int
+	stanID    string
+	lastError error
+}
+
+// Name returns the name of the natsDiagnosticsResult
+func (ndr natsDiagnosticsResult) Name() string {
+	return "Nats streaming server"
+}
+
+// String returns the outcome of the natsDiagnosticsResult
+func (ndr natsDiagnosticsResult) String() string {
+	if !ndr.up {
+		return "DOWN"
+	}
+
+	lastError := "NONE"
+	if ndr.lastError != nil {
+		lastError = ndr.lastError.Error()
+	}
+
+	return fmt.Sprintf("mode: %s @ 0.0.0.0:%d, ID: %s, last error: %s", ndr.natsMode, ndr.natsPort, ndr.stanID, lastError)
+}
+
+// Name returns the name of the GenericDiagnosticResult
+func (ddr dbDiagnosticResult) Name() string {
+	return "DB"
+}
+
+// String returns the outcome of the GenericDiagnosticResult
+func (ddr dbDiagnosticResult) String() string {
+	if ddr.pingError == nil {
+		return "ping: true"
+	}
+
+	return fmt.Sprintf("ping: false, error: %v", ddr.pingError)
+}
+
+// Diagnostics returns diagnostic reports from the nats streaming service and the DB
+func (octopus *EventOctopus) Diagnostics() []core.DiagnosticResult {
+	var (
+		stanState core.DiagnosticResult
+		dbState   core.DiagnosticResult
+	)
+
+	if octopus.stanServer == nil {
+		stanState = natsDiagnosticsResult{
+			up: false,
+		}
+	} else {
+		stanState = natsDiagnosticsResult{
+			up:        true,
+			natsMode:  octopus.stanServer.State().String(),
+			natsPort:  octopus.Config.NatsPort,
+			stanID:    octopus.stanServer.ClusterID(),
+			lastError: octopus.stanServer.LastError(),
+		}
+	}
+
+	dbState = dbDiagnosticResult{
+		pingError: octopus.sqlDb.Ping(),
+	}
+
+	return []core.DiagnosticResult{
+		stanState,
+		dbState,
+	}
 }
 
 // Configure initiates a STAN context
@@ -577,7 +656,7 @@ func (octopus *EventOctopus) GetEvent(uuid string) (*Event, error) {
 	}
 
 	if err != nil {
-		return nil ,err
+		return nil, err
 	}
 
 	return event, err

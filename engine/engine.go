@@ -31,11 +31,12 @@ func NewEventOctopusEngine() *engine.Engine {
 	i := pkg.EventOctopusInstance()
 
 	return &engine.Engine{
-		Name:      i.Name,
-		Config:    &i.Config,
-		ConfigKey: "events",
-		Configure: i.Configure,
-		FlagSet:   flagSet(),
+		Name:        i.Name,
+		Config:      &i.Config,
+		ConfigKey:   "events",
+		Configure:   i.Configure,
+		Diagnostics: i.Diagnostics,
+		FlagSet:     flagSet(),
 		Routes: func(router runtime.EchoRouter) {
 			api.RegisterHandlers(router, &api.Wrapper{Eo: i})
 		},
