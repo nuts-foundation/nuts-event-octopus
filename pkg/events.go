@@ -92,8 +92,9 @@ type EventOctopusConfig struct {
 	IncrementalBackoff int
 }
 
+// GetMode derives the mode (from the global mode) the engine should run in
 func (c EventOctopusConfig) GetMode() string {
-	// Since this module does not support mode selection (client/server), it will derive it from the global mode
+	// Since this module does not support mode selection (client/server), it will just derive it from the global mode
 	return core.NutsConfig().GetEngineMode("")
 }
 
@@ -312,24 +313,26 @@ func (octopus *EventOctopus) configure() error {
 		err error
 	)
 
-	if octopus.Config.GetMode() == core.ServerEngineMode {
-		octopus.sqlDb, err = sql.Open("sqlite3", octopus.Config.Connectionstring)
+	if octopus.Config.GetMode() != core.ServerEngineMode {
+		return nil
+	}
 
-		if err != nil {
-			return err
-		}
+	octopus.sqlDb, err = sql.Open("sqlite3", octopus.Config.Connectionstring)
 
-		// 1 ping
-		err = octopus.sqlDb.Ping()
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return err
+	}
 
-		// migrate
-		err = octopus.RunMigrations(octopus.sqlDb)
-		if err != nil {
-			return err
-		}
+	// 1 ping
+	err = octopus.sqlDb.Ping()
+	if err != nil {
+		return err
+	}
+
+	// migrate
+	err = octopus.RunMigrations(octopus.sqlDb)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -399,35 +402,37 @@ func (octopus *EventOctopus) startStanServer() error {
 func (octopus *EventOctopus) Start() error {
 	var err error
 
-	if octopus.Config.GetMode() == core.ServerEngineMode {
-		// gorm db connection
-		if octopus.Db, err = gorm.Open("sqlite3", octopus.sqlDb); err != nil {
+	if octopus.Config.GetMode() != core.ServerEngineMode {
+		return nil
+	}
+
+	// gorm db connection
+	if octopus.Db, err = gorm.Open("sqlite3", octopus.sqlDb); err != nil {
+		return err
+	}
+
+	// logging
+	octopus.Db.SetLogger(logrus.StandardLogger())
+
+	// natsServer startup
+	if err = octopus.startStanServer(); err != nil {
+		return err
+	}
+
+	// event store client
+	if err = octopus.startSubscribers(); err != nil {
+		return err
+	}
+
+	if octopus.Config.AutoRecover {
+		if err := octopus.recover(); err != nil {
 			return err
 		}
+	}
 
-		// logging
-		octopus.Db.SetLogger(logrus.StandardLogger())
-
-		// natsServer startup
-		if err = octopus.startStanServer(); err != nil {
+	if octopus.Config.PurgeCompleted {
+		if err := octopus.purgeCompleted(); err != nil {
 			return err
-		}
-
-		// event store client
-		if err = octopus.startSubscribers(); err != nil {
-			return err
-		}
-
-		if octopus.Config.AutoRecover {
-			if err := octopus.recover(); err != nil {
-				return err
-			}
-		}
-
-		if octopus.Config.PurgeCompleted {
-			if err := octopus.purgeCompleted(); err != nil {
-				return err
-			}
 		}
 	}
 
