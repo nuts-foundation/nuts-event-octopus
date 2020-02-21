@@ -7,6 +7,7 @@ package mock
 import (
 	gomock "github.com/golang/mock/gomock"
 	pkg "github.com/nuts-foundation/nuts-event-octopus/pkg"
+	core "github.com/nuts-foundation/nuts-go-core"
 	reflect "reflect"
 )
 
@@ -71,18 +72,18 @@ func (m *MockEventOctopusClient) EXPECT() *MockEventOctopusClientMockRecorder {
 }
 
 // EventPublisher mocks base method
-func (m *MockEventOctopusClient) EventPublisher(clientId string) (pkg.IEventPublisher, error) {
+func (m *MockEventOctopusClient) EventPublisher(clientID string) (pkg.IEventPublisher, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EventPublisher", clientId)
+	ret := m.ctrl.Call(m, "EventPublisher", clientID)
 	ret0, _ := ret[0].(pkg.IEventPublisher)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // EventPublisher indicates an expected call of EventPublisher
-func (mr *MockEventOctopusClientMockRecorder) EventPublisher(clientId interface{}) *gomock.Call {
+func (mr *MockEventOctopusClientMockRecorder) EventPublisher(clientID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EventPublisher", reflect.TypeOf((*MockEventOctopusClient)(nil).EventPublisher), clientId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EventPublisher", reflect.TypeOf((*MockEventOctopusClient)(nil).EventPublisher), clientID)
 }
 
 // Subscribe mocks base method
@@ -97,4 +98,18 @@ func (m *MockEventOctopusClient) Subscribe(service, subject string, callbacks ma
 func (mr *MockEventOctopusClientMockRecorder) Subscribe(service, subject, callbacks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockEventOctopusClient)(nil).Subscribe), service, subject, callbacks)
+}
+
+// Diagnostics mocks base method
+func (m *MockEventOctopusClient) Diagnostics() []core.DiagnosticResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Diagnostics")
+	ret0, _ := ret[0].([]core.DiagnosticResult)
+	return ret0
+}
+
+// Diagnostics indicates an expected call of Diagnostics
+func (mr *MockEventOctopusClientMockRecorder) Diagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockEventOctopusClient)(nil).Diagnostics))
 }
