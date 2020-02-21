@@ -92,6 +92,12 @@ type EventOctopusConfig struct {
 	IncrementalBackoff int
 }
 
+// GetMode derives the mode (from the global mode) the engine should run in
+func (c EventOctopusConfig) GetMode() string {
+	// Since this module does not support mode selection (client/server), it will just derive it from the global mode
+	return core.NutsConfig().GetEngineMode("")
+}
+
 // IEventPublisher defines the Publish signature so it can be mocked or implemented for another tech
 type IEventPublisher interface {
 	Publish(subject string, event Event) error
@@ -307,6 +313,10 @@ func (octopus *EventOctopus) configure() error {
 		err error
 	)
 
+	if octopus.Config.GetMode() != core.ServerEngineMode {
+		return nil
+	}
+
 	octopus.sqlDb, err = sql.Open("sqlite3", octopus.Config.Connectionstring)
 
 	if err != nil {
@@ -391,6 +401,10 @@ func (octopus *EventOctopus) startStanServer() error {
 // Start starts the receiver socket in a go routine
 func (octopus *EventOctopus) Start() error {
 	var err error
+
+	if octopus.Config.GetMode() != core.ServerEngineMode {
+		return nil
+	}
 
 	// gorm db connection
 	if octopus.Db, err = gorm.Open("sqlite3", octopus.sqlDb); err != nil {
