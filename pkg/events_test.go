@@ -21,7 +21,7 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	engine "github.com/nuts-foundation/nuts-go-core"
+	core "github.com/nuts-foundation/nuts-go-core"
 	"sync"
 	"testing"
 	"time"
@@ -670,7 +670,7 @@ func TestEventOctopus_recover(t *testing.T) {
 }
 
 func TestEventOctopus_GetMode(t *testing.T) {
-	assert.Equal(t, engine.ServerEngineMode, EventOctopusConfig{}.GetMode())
+	assert.Equal(t, core.ServerEngineMode, EventOctopusConfig{}.GetMode())
 }
 
 func TestEventOctopus_purgeCompleted(t *testing.T) {
