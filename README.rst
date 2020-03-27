@@ -3,8 +3,8 @@ nuts-event-octopus
 
 Event service by the Nuts foundation for listening to events from different parts within a node.
 
-.. image:: https://travis-ci.org/nuts-foundation/nuts-event-octopus.svg?branch=master
-    :target: https://travis-ci.org/nuts-foundation/nuts-event-octopus
+.. image:: https://circleci.com/gh/nuts-foundation/nuts-event-octopus.svg?style=svg
+    :target: https://circleci.com/gh/nuts-foundation/nuts-event-octopus
     :alt: Build Status
 
 .. image:: https://readthedocs.org/projects/nuts-event-octopus/badge/?version=latest
@@ -102,9 +102,13 @@ The following configuration parameters are available for the event service.
 ===================================     ======================================  ========================================
 Key                                     Default                                 Description
 ===================================     ======================================  ========================================
-events.ConfigConnectionstring           file:not_used?mode=memory&cache=shared  db connection string for event store
+events.ConfigConnectionstring           file::memory:?cache=shared              db connection string for event store
 events.natsPort                         4222                                    Port for Nats to bind on
 events.retryInterval                    60                                      Retry delay in seconds for reconnecting
+events.autoRecover                      true                                    Republish unfinished events at startup
+events.purgeCompleted                   true                                    Purge completed events at startup
+events.maxRetryCount                    5                                       Max number of retries for events before giving up (only for recoverable errors)
+events.incrementalBackoff               8                                       Incremental backoff per retry queue, queue 0 retries after 1 second, queue 1 after {incrementalBackoff} * {previousDelay}
 ===================================     ======================================  ========================================
 
 As with all other properties for nuts-go, they can be set through yaml:

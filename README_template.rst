@@ -3,8 +3,8 @@ nuts-event-octopus
 
 Event service by the Nuts foundation for listening to events from different parts within a node.
 
-.. image:: https://travis-ci.org/nuts-foundation/nuts-event-octopus.svg?branch=master
-    :target: https://travis-ci.org/nuts-foundation/nuts-event-octopus
+.. image:: https://circleci.com/gh/nuts-foundation/nuts-event-octopus.svg?style=svg
+    :target: https://circleci.com/gh/nuts-foundation/nuts-event-octopus
     :alt: Build Status
 
 .. image:: https://readthedocs.org/projects/nuts-event-octopus/badge/?version=latest
