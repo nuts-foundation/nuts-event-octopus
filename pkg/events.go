@@ -172,7 +172,7 @@ func (octopus *EventOctopus) Subscribe(service, subject string, handlers map[str
 			// Unmarshal JSON that represents the Order data
 			err := json.Unmarshal(msg.Data, &event)
 			if err != nil {
-				logrus.Errorf("Error unmarshalling event: %w", err)
+				logrus.Errorf("Error unmarshalling event: %v", err)
 				return
 			}
 			handler := channelHandlers.handlers[event.Name]
