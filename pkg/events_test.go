@@ -406,7 +406,7 @@ func TestEventOctopus_Retry(t *testing.T) {
 		wg.Wait()
 
 		assert.Equal(t, uuid, receivedEvent.UUID)
-		assert.Equal(t, int32(1), receivedEvent.RetryCount)
+		assert.Equal(t, int(1), receivedEvent.RetryCount)
 	})
 
 	t.Run("event published to retry channel with max retry count is persisted as error", func(t *testing.T) {

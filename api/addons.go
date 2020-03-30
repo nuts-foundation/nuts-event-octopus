@@ -35,12 +35,12 @@ func convert(e pkg.Event) Event {
 	}
 }
 
-func convertList(e *[]pkg.Event) []Event {
+func convertList(e *[]pkg.Event) *[]Event {
 	events := make([]Event, len(*e))
 
 	for i, el := range *e {
 		events[i] = convert(el)
 	}
 
-	return events
+	return &events
 }
