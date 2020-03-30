@@ -9,7 +9,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.10.0
 	github.com/golang/mock v1.4.3
 	github.com/jinzhu/gorm v1.9.12
-	github.com/labstack/echo/v4 v4.1.13
+	github.com/labstack/echo/v4 v4.1.15
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/nats-io/nats-streaming-server v0.16.2
 	github.com/nats-io/nats.go v1.8.1
