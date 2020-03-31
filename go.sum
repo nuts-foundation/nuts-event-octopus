@@ -373,6 +373,8 @@ github.com/nuts-foundation/nuts-go-core v0.0.0-20200220093939-3a4292f30472 h1:Vx
 github.com/nuts-foundation/nuts-go-core v0.0.0-20200220093939-3a4292f30472/go.mod h1:xltL3S+vqhSMYkTRIWyaVgtDk7y8KIENZmTbVIPIMcw=
 github.com/nuts-foundation/nuts-go-core v0.0.0-20200327150009-4443715cec5f h1:WIYh0Y/j7eG6hloSc/91kupinpZ/G/GK15fwxd+YYpk=
 github.com/nuts-foundation/nuts-go-core v0.0.0-20200327150009-4443715cec5f/go.mod h1:ozrMQNb1BbkjHuC18gbrrxKTwemvaCFIqLkwY6m8RLY=
+github.com/nuts-foundation/nuts-go-core v0.13.0 h1:kdmBClufcCZMKjeTyfLhxyLAtPMlk3U2049U1B7p/i4=
+github.com/nuts-foundation/nuts-go-core v0.13.0/go.mod h1:YVG736ZUyC0nHRozNUsbLPRnxQouCzoARpswWgPV55g=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.7.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
@@ -464,6 +466,8 @@ github.com/spf13/viper v1.4.0 h1:yXHLWeravcrgGyFSyCgdYpXQ9dR9c/WED3pg1RhxqEU=
 github.com/spf13/viper v1.4.0/go.mod h1:PTJ7Z/lr49W6bUbkmS1V3by4uWynFiR9p7+dSq/yZzE=
 github.com/spf13/viper v1.6.1 h1:VPZzIkznI1YhVMRi6vNFLHSwhnhReBfgTxIPccpfdZk=
 github.com/spf13/viper v1.6.1/go.mod h1:t3iDnF5Jlj76alVNuyFBk5oUMCvsrkbvZK0WQdfDi5k=
+github.com/spf13/viper v1.6.2 h1:7aKfF+e8/k68gda3LOjo5RxiUqddoFxVq4BKBPrxk5E=
+github.com/spf13/viper v1.6.2/go.mod h1:t3iDnF5Jlj76alVNuyFBk5oUMCvsrkbvZK0WQdfDi5k=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.1.1/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.2.0/go.mod h1:qt09Ya8vawLte6SNmTgCsAVtYtaKzEcn8ATUoHMkEqE=

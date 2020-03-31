@@ -14,7 +14,7 @@ require (
 	github.com/nats-io/nats-streaming-server v0.17.0
 	github.com/nats-io/nats.go v1.9.1
 	github.com/nats-io/stan.go v0.6.0
-	github.com/nuts-foundation/nuts-go-core v0.0.0-20200327150009-4443715cec5f
+	github.com/nuts-foundation/nuts-go-core v0.13.0
 	github.com/pelletier/go-toml v1.5.0 // indirect
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.5.0
