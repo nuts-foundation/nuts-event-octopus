@@ -524,7 +524,7 @@ func (octopus *EventOctopus) startSubscribers() error {
 			return
 		}
 
-		if event.RetryCount >= int32(octopus.Config.MaxRetryCount) {
+		if event.RetryCount >= octopus.Config.MaxRetryCount {
 			event.Name = EventErrored
 			errStr := "max retry count reached"
 			event.Error = &errStr

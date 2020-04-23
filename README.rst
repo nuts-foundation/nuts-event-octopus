@@ -38,7 +38,7 @@ Generating code
 
 .. code-block:: shell
 
-    oapi-codegen -generate server -package api docs/_static/nuts-event-store.yaml > api/generated.go
+    oapi-codegen -generate server,types -package api docs/_static/nuts-event-store.yaml > api/generated.go
 
 Generating Mock
 ***************
@@ -59,7 +59,7 @@ The  server API is generated from the nuts-consent-store open-api spec:
 
 .. code-block:: shell
 
-    oapi-codegen -generate server -package api docs/_static/nuts-event-store.yaml > api/generated.go
+    oapi-codegen -generate server,types -package api docs/_static/nuts-event-store.yaml > api/generated.go
 
 Binary format migrations
 ------------------------
