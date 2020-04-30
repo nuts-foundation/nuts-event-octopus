@@ -19,7 +19,6 @@
 package engine
 
 import (
-	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/nuts-foundation/nuts-event-octopus/api"
 	"github.com/nuts-foundation/nuts-event-octopus/pkg"
 	engine "github.com/nuts-foundation/nuts-go-core"
@@ -37,7 +36,7 @@ func NewEventOctopusEngine() *engine.Engine {
 		Configure:   i.Configure,
 		Diagnostics: i.Diagnostics,
 		FlagSet:     flagSet(),
-		Routes: func(router runtime.EchoRouter) {
+		Routes: func(router engine.EchoRouter) {
 			api.RegisterHandlers(router, &api.Wrapper{Eo: i})
 		},
 		Start:    i.Start,

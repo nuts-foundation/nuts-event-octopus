@@ -20,6 +20,7 @@ package api
 
 import (
 	"fmt"
+
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-event-octopus/pkg"
 )
@@ -37,8 +38,9 @@ func (w Wrapper) List(ctx echo.Context) error {
 		return fmt.Errorf("Error during fetching list of events from DB: %v", err)
 	}
 
+	ce := convertList(events)
 	resp := EventListResponse{
-		Events: convertList(events),
+		Events: &ce,
 	}
 
 	return ctx.JSON(200, resp)

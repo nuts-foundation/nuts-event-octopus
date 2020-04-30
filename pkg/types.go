@@ -28,7 +28,7 @@ type Event struct {
 	Error                *string `json:"error"`
 	ExternalID           string  `gorm:"not null" json:"externalId"`
 	Payload              string  `gorm:"not null" json:"payload"`
-	RetryCount           int32   `json:"retryCount"`
+	RetryCount           int     `json:"retryCount"`
 	Name                 string  `gorm:"not null" json:"name"`
 	UUID                 string  `gorm:"PRIMARY_KEY" json:"uuid"`
 }

@@ -21,10 +21,11 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	core "github.com/nuts-foundation/nuts-go-core"
 	"sync"
 	"testing"
 	"time"
+
+	core "github.com/nuts-foundation/nuts-go-core"
 
 	natsClient "github.com/nats-io/stan.go"
 	uuid "github.com/satori/go.uuid"
@@ -406,7 +407,7 @@ func TestEventOctopus_Retry(t *testing.T) {
 		wg.Wait()
 
 		assert.Equal(t, uuid, receivedEvent.UUID)
-		assert.Equal(t, int32(1), receivedEvent.RetryCount)
+		assert.Equal(t, 1, receivedEvent.RetryCount)
 	})
 
 	t.Run("event published to retry channel with max retry count is persisted as error", func(t *testing.T) {
