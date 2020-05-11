@@ -20,6 +20,16 @@ package pkg
 
 import "fmt"
 
+type VendorEvent struct {
+	EventID       string `json:"event_id"`       // the SHA-1 of the joined byte value of all other fields
+	AggregateID   string `json:"aggregate_id"`   // The id of the aggregate
+	AggregateType string `json:"aggregate_type"` // The type of the aggregate
+	Timestamp     int    `json:"timestamp"`
+	EventName     string `json:"event_name"` // The name of the event. This should be used to parse the data
+	CausedBy      string `json:"caused_by"`
+	Data          string `json:"data"` // json encoded event data. Use the Event name to know the contents
+}
+
 // Event is the type used for Gorm
 type Event struct {
 	ConsentID            string  `json:"consentId"`
@@ -39,6 +49,8 @@ func (e Event) String() string {
 
 // EventHandlerCallback defines the signature of an event handler method.
 type EventHandlerCallback func(event *Event)
+
+type VendorEventHandlerCallback func(event *Event)
 
 // EventConsentRequestConstructed is the event emitted directly after consent request creation to start the flow
 const EventConsentRequestConstructed = "consentRequest constructed"

@@ -208,6 +208,18 @@ func TestEventOctopus_EventPublisher(t *testing.T) {
 
 		assert.NotNil(t, err)
 	})
+
+	t.Run("publish a VendorEvent", func(t *testing.T) {
+		i := testEventOctopus()
+		i.configure()
+		i.Start()
+		defer i.Shutdown()
+
+		publisher, _ := i.EventPublisher("client-id")
+
+		err := publisher.PublishVendorEvent("agb:00000007", VendorEvent{EventID: "123"})
+		assert.NoError(t, err)
+	})
 }
 
 func TestEventOctopus_Subscribe(t *testing.T) {

@@ -108,6 +108,7 @@ type IEventPublisher interface {
 type EventOctopusClient interface {
 	EventPublisher(clientID string) (IEventPublisher, error)
 	Subscribe(service, subject string, callbacks map[string]EventHandlerCallback) error
+	SubscribeToVendorEvents(service, subject string, callbacks map[string]VendorEventHandlerCallback) error
 	Diagnostics() []core.DiagnosticResult
 }
 
@@ -115,6 +116,7 @@ type EventOctopusClient interface {
 type ChannelHandlers struct {
 	subscription natsClient.Subscription
 	handlers     map[string]EventHandlerCallback
+	vendorEventHandlers map[string]VendorEventHandlerCallback
 }
 
 // EventOctopus is the default implementation for EventOctopusInstance
@@ -153,6 +155,54 @@ func EventOctopusInstance() *EventOctopus {
 		}
 	})
 	return instance
+}
+// FIXME: this is almost a copy of Subscribe. Can we make it generic?
+func (octopus *EventOctopus) SubscribeToVendorEvents(service, subject string, handlers map[string]VendorEventHandlerCallback) error {
+	// create a new ChannelHandler if it does not exists for the combination of service and subject
+	if channelHandlers, ok := octopus.channelHandlers[service][subject]; !ok {
+
+		channelHandlers := ChannelHandlers{
+			vendorEventHandlers: handlers,
+		}
+		stanClient, err := octopus.client(service)
+		if err != nil {
+			return err
+		}
+
+		channelHandlers.subscription, _ = stanClient.Subscribe(subject, func(msg *natsClient.Msg) {
+			event := &Event{}
+			// Unmarshal JSON that represents the Order data
+			err := json.Unmarshal(msg.Data, &event)
+			if err != nil {
+				logrus.Errorf("Error unmarshalling event: %v", err)
+				return
+			}
+			handler := channelHandlers.handlers[event.Name]
+			if handler != nil {
+				handler(event)
+			}
+			wildcardHandler := channelHandlers.handlers["*"]
+			if wildcardHandler != nil {
+				wildcardHandler(event)
+			}
+			if handler == nil && wildcardHandler == nil {
+				logrus.Infof("Event without handler %v", event.Name)
+				return
+			}
+		})
+		// does the inner map exists?
+		if _, ok := octopus.channelHandlers[service]; !ok {
+			octopus.channelHandlers[service] = make(map[string]ChannelHandlers)
+		}
+		octopus.channelHandlers[service][subject] = channelHandlers
+	} else {
+		// merge handlers
+		for key, handler := range handlers {
+			channelHandlers.vendorEventHandlers[key] = handler
+		}
+	}
+	return nil
+
 }
 
 // Subscribe lets you subscribe to events for a service and subject. For each Event.name you can provide a callback function
@@ -470,6 +520,15 @@ type EventPublisher struct {
 
 // Publish accepts an Event, than marshals and publishes it at the subject choice
 func (p EventPublisher) Publish(subject string, event Event) error {
+	data, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	return p.conn.Publish(subject, data)
+}
+
+// Publish a VendorEvent based on a subject. The subject should be a party managed by this node.
+func (p EventPublisher) PublishVendorEvent(subject string, event VendorEvent) error {
 	data, err := json.Marshal(event)
 	if err != nil {
 		return err
