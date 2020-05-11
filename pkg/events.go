@@ -22,11 +22,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/golang-migrate/migrate/v4"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/jinzhu/gorm"
@@ -101,6 +101,7 @@ func (c EventOctopusConfig) GetMode() string {
 // IEventPublisher defines the Publish signature so it can be mocked or implemented for another tech
 type IEventPublisher interface {
 	Publish(subject string, event Event) error
+	PublishVendorEvent(subject string, event VendorEvent) error
 }
 
 // EventOctopusClient is the client interface for publishing events
@@ -176,11 +177,17 @@ func (octopus *EventOctopus) Subscribe(service, subject string, handlers map[str
 				return
 			}
 			handler := channelHandlers.handlers[event.Name]
-			if handler == nil {
+			if handler != nil {
+				handler(event)
+			}
+			wildcardHandler := channelHandlers.handlers["*"]
+			if wildcardHandler != nil {
+				wildcardHandler(event)
+			}
+			if handler == nil && wildcardHandler == nil {
 				logrus.Infof("Event without handler %v", event.Name)
 				return
 			}
-			handler(event)
 		})
 		// does the inner map exists?
 		if _, ok := octopus.channelHandlers[service]; !ok {
