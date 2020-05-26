@@ -82,6 +82,9 @@ const EventCompleted = "completed"
 // EventErrored indicates the flow has errored
 const EventErrored = "error"
 
+// EventErrored indicates the branch was closed
+const EventClosed = "closed"
+
 // ChannelConsentRequest is the default channel to broadcast events
 const ChannelConsentRequest = "consentRequest"
 
