@@ -34,6 +34,8 @@ Payload per event
 +------------------------------------------+                     |                                                                                                             |
 | ConsentRequest in flight                 |                     |                                                                                                             |
 +------------------------------------------+                     |                                                                                                             |
+| ConsentRequest flow cancelled            |                     |                                                                                                             |
++------------------------------------------+                     |                                                                                                             |
 | ConsentRequest flow errored              |                     |                                                                                                             |
 +------------------------------------------+---------------------+-------------------------------------------------------------------------------------------------------------+
 | Distributed ConsentRequest received      | FullConsentRequest  | In principle the same as the NewConsentRequest above, but it'll contain AttachmentSignatures when available |
@@ -70,6 +72,10 @@ A new consent request has been POSTed to the *consent-logic* module. It is check
 ConsentRequest in flight
 ------------------------
 ``consentRequest constructed`` Events are handled by the *corda-bridge*. The *corda-bridge* find the nodes to be involved and submits a transaction to Corda. The transactionId from Corda is added to a new event with state ``ConsentRequest in flight`` It'll then start polling for the initiated transaction to give feedback about its state. If all nodes have signed (including the notary), the *corda-bridge* publishes the event with added consentId and state: ``Distributed ConsentRequest received``.
+
+ConsentRequest flow cancelled
+---------------------------
+Event that is published when a Corda close flow has been executed. This is the case when another node nacks the request. The error field will give information about the closure reason.
 
 ConsentRequest flow errored
 ---------------------------
