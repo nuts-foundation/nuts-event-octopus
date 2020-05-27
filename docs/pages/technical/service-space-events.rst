@@ -57,9 +57,6 @@ Payload per event
 | Consent distributed                      | ConsentState        | The final consent state                                                                                     |
 +------------------------------------------+---------------------+-------------------------------------------------------------------------------------------------------------+
 
-.. note::
-
-    todo: the events for the cancellation states still have to be added.
 
 Event types
 ===========
@@ -79,7 +76,7 @@ Event that is published when a Corda close flow has been executed. This is the c
 
 ConsentRequest flow errored
 ---------------------------
-Event that is published when a Corda flow could not succeed. The error field will give information about why it failed.
+Event that is published when a Corda flow was closed with an error reason. The error field will give information about why it failed.
 
 ConsentRequest flow success
 ---------------------------
@@ -125,7 +122,7 @@ From the ``Consent distributed`` event, consent records are persisted in the *co
 Error
 -----
 
-If for some reason, an event enters the error state, the error field of the event will show the explanation. Since the event log is a circular log, errored events will not survive restarts if they are older than X (depending on the log size). It is recommended to store errored events by parsing the regular error logs and storing them somewhere.
+If for some reason, an event enters the error state, the error field of the event will show the explanation. Since the event log is a circular log, errored events will not survive restarts if they are older than X (depending on the log size). It is recommended to store errored events by parsing the regular error logs and storing them somewhere. An error event published to the error channel will not be propagated across nodes, an error event published to the regular channel will be picked up an synchronized across nodes.
 
 Channels and queues
 ===================
