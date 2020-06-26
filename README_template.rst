@@ -24,5 +24,25 @@ Event service by the Nuts foundation for listening to events from different part
 Configuration
 *************
 
-.. include:: docs/pages/configuration/event-octopus.rst
-    :start-after: .. marker-for-readme
+The following configuration parameters are available:
+
+.. include:: README_options.rst
+
+As with all other properties for nuts-go, they can be set through yaml:
+
+.. sourcecode:: yaml
+
+    events:
+       eventStartEpoch: 0
+
+as commandline property
+
+.. sourcecode:: shell
+
+    ./nuts --events.eventStartEpoch 0
+
+Or by using environment variables
+
+.. sourcecode:: shell
+
+    NUTS_EVENTS_EVENTSTARTEPOCH=0 ./nuts
