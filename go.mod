@@ -8,7 +8,7 @@ require (
 	github.com/golang/mock v1.4.4
 	github.com/jinzhu/gorm v1.9.16
 	github.com/json-iterator/go v1.1.9 // indirect
-	github.com/labstack/echo/v4 v4.1.16
+	github.com/labstack/echo/v4 v4.1.17
 	github.com/nats-io/nats-streaming-server v0.17.0
 	github.com/nats-io/nats.go v1.9.2 // indirect
 	github.com/nats-io/stan.go v0.6.0
