@@ -10,9 +10,8 @@ require (
 	github.com/json-iterator/go v1.1.9 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/labstack/echo/v4 v4.1.17
-	github.com/nats-io/nats-streaming-server v0.17.0
-	github.com/nats-io/nats.go v1.9.2 // indirect
-	github.com/nats-io/stan.go v0.6.0
+	github.com/nats-io/nats-streaming-server v0.18.0
+	github.com/nats-io/stan.go v0.7.0
 	github.com/nuts-foundation/nuts-go-core v0.15.0
 	github.com/pelletier/go-toml v1.5.0 // indirect
 	github.com/satori/go.uuid v1.2.0
