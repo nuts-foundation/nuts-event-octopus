@@ -5,9 +5,10 @@ package api
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/labstack/echo/v4"
-	"net/http"
 )
 
 // Event defines model for Event.
@@ -123,14 +124,20 @@ type EchoRouter interface {
 
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
+	RegisterHandlersWithBaseURL(router, si, "")
+}
+
+// Registers handlers, and prepends BaseURL to the paths, so that the paths
+// can be served under a prefix.
+func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL string) {
 
 	wrapper := ServerInterfaceWrapper{
 		Handler: si,
 	}
 
-	router.GET("/events", wrapper.List)
-	router.GET("/events/by_external_id/:external_id", wrapper.GetEventByExternalId)
-	router.GET("/events/:uuid", wrapper.GetEvent)
+	router.GET(baseURL+"/events", wrapper.List)
+	router.GET(baseURL+"/events/by_external_id/:external_id", wrapper.GetEventByExternalId)
+	router.GET(baseURL+"/events/:uuid", wrapper.GetEvent)
 
 }
 
