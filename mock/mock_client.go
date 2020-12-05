@@ -7,7 +7,7 @@ package mock
 import (
 	gomock "github.com/golang/mock/gomock"
 	pkg "github.com/nuts-foundation/nuts-event-octopus/pkg"
-	core "github.com/nuts-foundation/nuts-go-core"
+	nuts_go_core "github.com/nuts-foundation/nuts-go-core"
 	reflect "reflect"
 )
 
@@ -46,6 +46,20 @@ func (m *MockIEventPublisher) Publish(subject string, event pkg.Event) error {
 func (mr *MockIEventPublisherMockRecorder) Publish(subject, event interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockIEventPublisher)(nil).Publish), subject, event)
+}
+
+// PublishVendorEvent mocks base method
+func (m *MockIEventPublisher) PublishVendorEvent(subject string, event pkg.VendorEvent) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PublishVendorEvent", subject, event)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PublishVendorEvent indicates an expected call of PublishVendorEvent
+func (mr *MockIEventPublisherMockRecorder) PublishVendorEvent(subject, event interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishVendorEvent", reflect.TypeOf((*MockIEventPublisher)(nil).PublishVendorEvent), subject, event)
 }
 
 // MockEventOctopusClient is a mock of EventOctopusClient interface
@@ -100,11 +114,25 @@ func (mr *MockEventOctopusClientMockRecorder) Subscribe(service, subject, callba
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockEventOctopusClient)(nil).Subscribe), service, subject, callbacks)
 }
 
+// SubscribeToVendorEvents mocks base method
+func (m *MockEventOctopusClient) SubscribeToVendorEvents(service, subject string, callbacks map[string]pkg.VendorEventHandlerCallback) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubscribeToVendorEvents", service, subject, callbacks)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SubscribeToVendorEvents indicates an expected call of SubscribeToVendorEvents
+func (mr *MockEventOctopusClientMockRecorder) SubscribeToVendorEvents(service, subject, callbacks interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeToVendorEvents", reflect.TypeOf((*MockEventOctopusClient)(nil).SubscribeToVendorEvents), service, subject, callbacks)
+}
+
 // Diagnostics mocks base method
-func (m *MockEventOctopusClient) Diagnostics() []core.DiagnosticResult {
+func (m *MockEventOctopusClient) Diagnostics() []nuts_go_core.DiagnosticResult {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Diagnostics")
-	ret0, _ := ret[0].([]core.DiagnosticResult)
+	ret0, _ := ret[0].([]nuts_go_core.DiagnosticResult)
 	return ret0
 }
 

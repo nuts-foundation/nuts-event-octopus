@@ -208,6 +208,18 @@ func TestEventOctopus_EventPublisher(t *testing.T) {
 
 		assert.NotNil(t, err)
 	})
+
+	t.Run("publish a VendorEvent", func(t *testing.T) {
+		i := testEventOctopus()
+		i.configure()
+		i.Start()
+		defer i.Shutdown()
+
+		publisher, _ := i.EventPublisher("client-id")
+
+		err := publisher.PublishVendorEvent("agb:00000007", VendorEvent{EventID: "123"})
+		assert.NoError(t, err)
+	})
 }
 
 func TestEventOctopus_Subscribe(t *testing.T) {
@@ -283,6 +295,47 @@ func TestEventOctopus_Subscribe(t *testing.T) {
 			assert.Fail(t, "did not expect event to be handled")
 		case <-time.After(10 * time.Millisecond):
 		}
+	})
+
+	t.Run("it accepts a wildcard handler", func(t *testing.T) {
+		called := false
+		i := testEventOctopus()
+		i.configure()
+		i.Start()
+		defer i.Shutdown()
+
+		wg := sync.WaitGroup{}
+		wg.Add(2) // expect 2 handlers
+
+		_ = i.Subscribe("event-logic",
+			"EventRequestEvents",
+			map[string]EventHandlerCallback{
+				"*": func(event *Event) {
+					wg.Done()
+				},
+				event().Name: func(event *Event) {
+					wg.Done()
+				},
+			})
+
+		publisher, _ := i.EventPublisher("event-octopus-test")
+
+		notify := make(chan bool)
+
+		go func() {
+			wg.Wait()
+			notify <- true
+		}()
+
+		_ = publisher.Publish("EventRequestEvents", event())
+
+		select {
+		case <-notify:
+			called = true
+		case <-time.After(10 * time.Millisecond):
+		}
+
+		assert.True(t, called)
 	})
 
 	t.Run("adding handlers for the same service and subject should merge the handlers", func(t *testing.T) {
