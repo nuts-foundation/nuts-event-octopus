@@ -8,9 +8,8 @@ require (
 	github.com/golang/mock v1.4.4
 	github.com/jinzhu/gorm v1.9.16
 	github.com/labstack/echo/v4 v4.1.17
-	github.com/nats-io/nats-streaming-server v0.17.0
-	github.com/nats-io/nats.go v1.9.2 // indirect
-	github.com/nats-io/stan.go v0.6.0
+	github.com/nats-io/nats-streaming-server v0.20.0
+	github.com/nats-io/stan.go v0.8.1
 	github.com/nuts-foundation/nuts-go-core v0.16.0
 	github.com/pelletier/go-toml v1.5.0 // indirect
 	github.com/satori/go.uuid v1.2.0
