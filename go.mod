@@ -3,7 +3,7 @@ module github.com/nuts-foundation/nuts-event-octopus
 go 1.13
 
 require (
-	github.com/deepmap/oapi-codegen v1.4.1
+	github.com/deepmap/oapi-codegen v1.5.0
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/golang/mock v1.4.4
 	github.com/jinzhu/gorm v1.9.16
